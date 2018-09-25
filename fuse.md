@@ -18,46 +18,46 @@ Almost all operations take a path which can be of any length.
 
 | Name          | Arguments                              | comment                                                      | need?                    |
 | ------------- | -------------------------------------- | ------------------------------------------------------------ | ------------------------ |
-| `getattr`     | `path, stat, fi`                       | `stat` is the output; contains mode, length, etc.            | :heavy_check_mark:       |
-| `readlink`    | `path`, `buf`, `buf_size`              | `buf` is filled with link target                             | :black_circle:           |
-| `mknod`       | `path`, `mode`, `dev`                  | create special files like char, block, etc.                  | :heavy_multiplication_x: |
-| `mkdir`       | `path`, `mode`                         | create a directory                                           | :heavy_check_mark:       |
-| `unlink`      | `path`                                 | remove a file                                                | :heavy_check_mark:       |
-| `rmdir`       | `path`                                 | rm a directory                                               | :heavy_check_mark:       |
-| `symlink`     | `target`, `linkpath`                   | create a symbolic link                                       | :black_circle:           |
-| `rename`      | `oldpath`,`newpath`                    | rename                                                       | :heavy_check_mark:       |
-| `link`        | `oldpath`, `newpath`                   | create a hard link                                           | :black_circle:           |
-| `chmod`       | `path`, `mode`, `fi`                   | chmod                                                        | :heavy_multiplication_x: |
-| `chown`       | `path`, `uid`, `gid`, `fi`             | chown                                                        | :heavy_multiplication_x: |
-| `truncate`    | `path`, `size`, `fi`                   | change file size                                             | :heavy_check_mark:       |
-| `open`        | `path`, `fi`                           | see [docs](#open)                                            | :heavy_check_mark:       |
-| `read`        | `path`, `buf`, `size`, `offset`,`fi`   | read                                                         | :heavy_check_mark:       |
-| `write`       | `path`,`buf`,`size`,`fi`               | write                                                        | :heavy_check_mark:       |
-| `statfs`      | `path`, `statvfs`                      | info of this filesystem                                      | :black_circle:           |
-| `flush`       | `path`, `fi`                           | called before close. see [docs](#flush)                      | :heavy_check_mark:       |
-| `release`     | `path`, `fi`                           | called when no open fd for a file exists                     | :heavy_check_mark:       |
-| `fsync`       | `path`, `?`, `fi`                      | write back dirty data                                        | :heavy_check_mark:       |
-| `setxattr`    | ...                                    | extended attr                                                | :heavy_multiplication_x: |
-| `getxattr`    | ...                                    |                                                              | :heavy_multiplication_x: |
-| `listxattr`   | ...                                    |                                                              | :heavy_multiplication_x: |
-| `removexattr` | ...                                    |                                                              | :heavy_multiplication_x: |
-| `opendir`     | `path`, `fi`                           | open directory                                               | :heavy_check_mark:       |
-| `readdir`     | `path`, `buf`, `filler`, `fi`, `flags` | read directory entries                                       | :heavy_check_mark:       |
-| `releasedir`  | `path`, `fi`                           | release directory                                            | :heavy_check_mark:       |
-| `fsyncdir`    | `path`, `?`, `fi`                      | write back dirty data                                        | :heavy_check_mark:       |
-| `init`        | `connection`,`config`                  | a chance to pass private data to context                     | :heavy_check_mark:       |
-| `destroy`     | `private_data`                         | filesystem exits                                             | :heavy_check_mark:       |
-| `access`      | `path`, `?`                            | check permission (not called if we let kernel handles permissions) | :heavy_multiplication_x: |
-| `create`      | `path`, `mode`, `fi`                   | create and open                                              | :heavy_check_mark:       |
-| `lock`        | `path`, `fi`, `cmd`, `flock`           | lock file                                                    | :black_circle:           |
-| `utimens`     | `path`, `time`, `fi`                   | change access and modification time                          | :black_circle:           |
-| `bmap`        | ...                                    | block mapping                                                | :heavy_multiplication_x: |
-| `ioctl`       | ...                                    | the ultimate cmd                                             | :heavy_multiplication_x: |
-| `poll`        | ...                                    | poll io events                                               | :heavy_multiplication_x: |
-| `write_buf`   | ...                                    | similar to write                                             | :heavy_multiplication_x: |
-| `read_buf`    | ...                                    | similar to read                                              | :heavy_multiplication_x: |
-| `flock`       | ...                                    | bsd locking                                                  | :black_circle:           |
-| `fallocate`   | ...                                    | reserve space for files                                      | :heavy_multiplication_x: |
+| `getattr`     | `path, stat, fi`                       | `stat` is the output; contains mode, length, etc.            | y       |
+| `readlink`    | `path`, `buf`, `buf_size`              | `buf` is filled with link target                             | o           |
+| `mknod`       | `path`, `mode`, `dev`                  | create special files like char, block, etc.                  | n |
+| `mkdir`       | `path`, `mode`                         | create a directory                                           | y       |
+| `unlink`      | `path`                                 | remove a file                                                | y       |
+| `rmdir`       | `path`                                 | rm a directory                                               | y       |
+| `symlink`     | `target`, `linkpath`                   | create a symbolic link                                       | o           |
+| `rename`      | `oldpath`,`newpath`                    | rename                                                       | y       |
+| `link`        | `oldpath`, `newpath`                   | create a hard link                                           | o           |
+| `chmod`       | `path`, `mode`, `fi`                   | chmod                                                        | n |
+| `chown`       | `path`, `uid`, `gid`, `fi`             | chown                                                        | n |
+| `truncate`    | `path`, `size`, `fi`                   | change file size                                             | y       |
+| `open`        | `path`, `fi`                           | see [docs](#open)                                            | y       |
+| `read`        | `path`, `buf`, `size`, `offset`,`fi`   | read                                                         | y       |
+| `write`       | `path`,`buf`,`size`,`fi`               | write                                                        | y       |
+| `statfs`      | `path`, `statvfs`                      | info of this filesystem                                      | o           |
+| `flush`       | `path`, `fi`                           | called before close. see [docs](#flush)                      | y       |
+| `release`     | `path`, `fi`                           | called when no open fd for a file exists                     | y       |
+| `fsync`       | `path`, `?`, `fi`                      | write back dirty data                                        | y       |
+| `setxattr`    | ...                                    | extended attr                                                | n |
+| `getxattr`    | ...                                    |                                                              | n |
+| `listxattr`   | ...                                    |                                                              | n |
+| `removexattr` | ...                                    |                                                              | n |
+| `opendir`     | `path`, `fi`                           | open directory                                               | y       |
+| `readdir`     | `path`, `buf`, `filler`, `fi`, `flags` | read directory entries                                       | y       |
+| `releasedir`  | `path`, `fi`                           | release directory                                            | y       |
+| `fsyncdir`    | `path`, `?`, `fi`                      | write back dirty data                                        | y       |
+| `init`        | `connection`,`config`                  | a chance to pass private data to context                     | y       |
+| `destroy`     | `private_data`                         | filesystem exits                                             | y       |
+| `access`      | `path`, `?`                            | check permission (not called if we let kernel handles permissions) | n |
+| `create`      | `path`, `mode`, `fi`                   | create and open                                              | y       |
+| `lock`        | `path`, `fi`, `cmd`, `flock`           | lock file                                                    | o           |
+| `utimens`     | `path`, `time`, `fi`                   | change access and modification time                          | o           |
+| `bmap`        | ...                                    | block mapping                                                | n |
+| `ioctl`       | ...                                    | the ultimate cmd                                             | n |
+| `poll`        | ...                                    | poll io events                                               | n |
+| `write_buf`   | ...                                    | similar to write                                             | n |
+| `read_buf`    | ...                                    | similar to read                                              | n |
+| `flock`       | ...                                    | bsd locking                                                  | o           |
+| `fallocate`   | ...                                    | reserve space for files                                      | n |
 
 ### Explanation from Docs
 
