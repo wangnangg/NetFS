@@ -1,3 +1,5 @@
+
+
 # FUSE Info
 
 ## Operations
@@ -120,4 +122,89 @@ Operations we must implement:
 | `fsyncdir`   | 2        |
 | `init`       | 1        |
 | `destroy`    | 1        |
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant K as kernel
+    participant F as Fuse
+    participant S as Server
+    U->>K: open(path, mode) 
+    K->>F: open(path, fi)
+    F->>S: req(id, "open", path, mode)
+    S->>F: ans(id, ok)
+    F->>K: 0
+    K->>U: fd
+```
+
+Cache data structure:
+
+`hash_map( (full_path, block_num), (dirty, access_time, block_data))`
+
+
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant K as kernel
+    participant F as Fuse (th 1)
+    participant C as Cache (th 2)
+    participant CW as Cache Woker (th 3)
+    participant S as Server
+    U->>K: read(fd, buf, size)
+    K->>F: read(path, buf, size, off, fi)
+    F->>C: queue1(path, bs, be)
+    opt miss
+    C->>CW: async queue2(id, path, bs, be)
+    C->>C: wait on queue1 or queue2
+    CW->>S: send_msg(id, path, bs, be)
+    S->>CW: resp_msg(id, path, block_data)
+    CW->>C: queue2(id, path, block_data)
+    end
+    C->>F: queue1(path, block_data)
+    F->>K: 
+    K->>U: 
+```
+
+
+
+write
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant K as kernel
+    participant F as Fuse (th 1)
+    participant C as Cache (th 2)
+    U->>K: write(fd, buf, count)
+    K->>F: write(path, buf, size, fi)
+    F->>F: buff write  wthin a block
+    alt incomplete block
+    F->>C: queue1("read", path, bn)
+    C->>F: block_data
+    F->>F: overwrite block
+    end
+    F->>C: queue1("write", path, bn, block_data)
+    C->>C: store in cache
+    C->>F: 
+    F->>K: size
+    K->>U: size
+    
+```
+
+close
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant K as kernel
+    participant F as Fuse (th 1)
+    participant C as Cache (th 2)
+    participant CW as Cache Woker (th 3)
+    participant S as Server
+    U->>K: close(fd)
+    K->>F: release(path, fi)
+    
+    
+```
 
