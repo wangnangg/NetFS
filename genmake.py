@@ -88,23 +88,44 @@ cpp_compiler = '${cpp_compiler}'
 linker = '${linker}'
 makefile_body = []
 
-src_files = find_files('client_src', '.cpp')
-obj_files = transform_src_files(src_files, "${build_dir}")
-for i in range(0, len(src_files)):
+client_src_files = find_files('client_src', '.cpp')
+client_obj_files = transform_src_files(client_src_files, "${build_dir}")
+for i in range(0, len(client_src_files)):
     makefile_body.append(
-        compile_rule(cpp_compiler, "${client_compile_flags}", src_files[i], obj_files[i]))
+        compile_rule(cpp_compiler, "${client_compile_flags}",
+                     client_src_files[i], client_obj_files[i]))
 
 makefile_body.append(
-    link_rule(linker, "${client_link_flags}",
-              obj_files,
+    link_rule(linker, "${client_link_flags}", client_obj_files,
               '${build_dir}/client'))
+
+gtest_src_files = find_files('googletest', 'gtest-all.cc')
+gtest_obj_files = transform_src_files(gtest_src_files, "${build_dir}")
+
+for src, obj in zip(gtest_src_files, gtest_obj_files):
+    makefile_body.append(
+        compile_rule(cpp_compiler, "${gtest_compile_flags}", src, obj))
+
+utest_src_files = find_files('utest_src', '.cpp')
+utest_obj_files = transform_src_files(utest_src_files, "${build_dir}")
+
+for src, obj in zip(utest_src_files, utest_obj_files):
+    makefile_body.append(
+        compile_rule(cpp_compiler, "${utest_compile_flags}", src, obj))
+
+makefile_body.append(
+    link_rule(
+        linker, "${utest_link_flags}",
+        list(
+            filter(lambda x: os.path.basename(x) != "main.o",
+                   client_obj_files)) + gtest_obj_files + utest_obj_files,
+        '${build_dir}/utest'))
 
 deps = list2makestr(
     map(lambda obj: change_ext(obj, '.d'),
-        obj_files))
+        client_obj_files + gtest_obj_files + utest_obj_files))
 
 makefile_body.append('deps:=' + deps + '\n')
-
 
 with open('makefile.in', 'r') as fin:
     makefilein_content = fin.readlines()
