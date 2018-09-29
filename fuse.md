@@ -128,12 +128,15 @@ sequenceDiagram
     participant U as User
     participant K as kernel
     participant F as Fuse
+    participant C as Cache
     participant S as Server
     U->>K: open(path, mode) 
     K->>F: open(path, fi)
-    F->>S: req(id, "open", path, mode)
-    S->>F: ans(id, ok)
-    F->>K: 0
+    F->>C: open(path)
+    C->>S: msg(id, "open", path)
+    S->>C: msg(id, "ok")
+    C->>F: ok
+    F->>K: ok
     K->>U: fd
 ```
 
@@ -147,23 +150,22 @@ Cache data structure:
 sequenceDiagram
     participant U as User
     participant K as kernel
-    participant F as Fuse (th 1)
-    participant C as Cache (th 2)
-    participant CW as Cache Woker (th 3)
+    participant F as Fuse
+    participant C as Cache
     participant S as Server
     U->>K: read(fd, buf, size)
     K->>F: read(path, buf, size, off, fi)
-    F->>C: queue1(path, bs, be)
-    opt miss
-    C->>CW: async queue2(id, path, bs, be)
-    C->>C: wait on queue1 or queue2
-    CW->>S: send_msg(id, path, bs, be)
-    S->>CW: resp_msg(id, path, block_data)
-    CW->>C: queue2(id, path, block_data)
+    opt seqential
+    F->>C: fetch(path, bs, be)
     end
-    C->>F: queue1(path, block_data)
-    F->>K: 
-    K->>U: 
+    F->>C: read(path, bn)
+    opt miss
+    C->>S: msg(id, "read", bs, be)
+    S->>C: msg(id, "read", data)
+    end
+    C->>F: data
+    F->>K: size
+    K->>U: size
 ```
 
 
@@ -174,19 +176,21 @@ write
 sequenceDiagram
     participant U as User
     participant K as kernel
-    participant F as Fuse (th 1)
-    participant C as Cache (th 2)
+    participant F as Fuse
+    participant C as Cache
     U->>K: write(fd, buf, count)
     K->>F: write(path, buf, size, fi)
-    F->>F: buff write  wthin a block
-    alt incomplete block
-    F->>C: queue1("read", path, bn)
-    C->>F: block_data
+    alt write within a block
+    F->>K: size
+    else write crosses block boundary
+    opt incomplete block
+    F->>C: read(path, bn)
+    C->>F: data
     F->>F: overwrite block
     end
-    F->>C: queue1("write", path, bn, block_data)
-    C->>C: store in cache
-    C->>F: 
+    F->>C: write(path, bn, data)
+    end
+    C->>F: ok
     F->>K: size
     K->>U: size
     
@@ -198,13 +202,51 @@ close
 sequenceDiagram
     participant U as User
     participant K as kernel
-    participant F as Fuse (th 1)
-    participant C as Cache (th 2)
-    participant CW as Cache Woker (th 3)
+    participant F as Fuse
+    participant C as Cache
     participant S as Server
+    participant CC as Other Clients
     U->>K: close(fd)
     K->>F: release(path, fi)
+    F->>C: release(path)
+    opt dirty
+    C->>S: write dirty blocks
+    S->>C: 
+    end
+    C->>S: msg(id, "release", path)
+    S->>CC: msg(id, "release", path)
+    S->>C: ok
+    C->>F: ok
+    F->>K: ok
+    K->>U: ok
     
     
+```
+
+
+
+
+
+cache state
+
+```mermaid
+graph TD
+    invalid -->|fetch| clean
+    invalid -->|write| dirty
+    clean --> |write| dirty
+    clean --> |read| clean
+    dirty --> |read or write| dirty
+    dirty --> |initiate write-back| write-back-active
+    dirty --> |ack write-back| dirty
+    write-back-active --> |read| write-back-active
+    write-back-active --> |write| dirty
+    write-back-active --> |ack write-back|clean
+    clean --> |evict| invalid
+    invalid --> |release| invalid
+    clean --> |release| closed
+    closed --> |open| clean
+    closed --> |remote release| invalid
+    invalid --> |open| invalid
+
 ```
 
