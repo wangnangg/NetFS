@@ -3,7 +3,7 @@ linker?=gcc
 config?=debug
 build_dir:=build/${config}
 
-client_compile_flags:= -Isrc -Ifuse-3/include -std=c++17 -Wall -MMD -MP -D_FILE_OFFSET_BITS=64 -Winvalid-pch -D_REENTRANT -DHAVE_CONFIG_H -Wextra -Wno-sign-compare -fno-strict-aliasing -fpermissive -Wno-unused-result -Wno-missing-field-initializers
+client_compile_flags:= -Isrc -Ifuse-3/include -std=c++17 -Wall -Werror -MMD -MP -D_FILE_OFFSET_BITS=64 -Winvalid-pch -D_REENTRANT -Wextra -Wno-sign-compare -fno-strict-aliasing -fpermissive -Wno-unused-result -Wno-missing-field-initializers
 client_link_flags:= -lstdc++ -pthread -Lfuse-3/build/lib -lfuse3 '-Wl,-rpath,$$ORIGIN/lib'
 
 ifeq ($(config), release)

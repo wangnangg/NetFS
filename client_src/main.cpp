@@ -1,6 +1,7 @@
 /*
   FUSE: Filesystem in Userspace
   Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
+  Copyright (C) 2011       Sebastian Pipping <sebastian@pipping.org>
 
   This program can be distributed under the terms of the GNU GPL.
   See the file COPYING.
@@ -8,171 +9,375 @@
 
 /** @file
  *
- * minimal example filesystem using high-level API
+ * This file system mirrors the existing file system hierarchy of the
+ * system, starting at the root file system. This is implemented by
+ * just "passing through" all requests to the corresponding user-space
+ * libc functions. Its performance is terrible.
  *
- * Compile with:
+ * Compile with
  *
- *     gcc -Wall hello.c `pkg-config fuse3 --cflags --libs` -o hello
+ *     gcc -Wall passthrough.c `pkg-config fuse3 --cflags --libs` -o passthrough
  *
  * ## Source code ##
- * \include hello.c
+ * \include passthrough.c
  */
+
 
 #define FUSE_USE_VERSION 31
-
-#include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stddef.h>
+#include <fuse.h>
 #include <stdio.h>
 #include <string.h>
-#include "fuse.h"
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <errno.h>
+#include <sys/time.h>
 
-/*
- * Command line options
- *
- * We can't set default values for the char* fields here because
- * fuse_opt_parse would attempt to free() them when the user specifies
- * different values on the command line.
- */
-static struct options
+static void *xmp_init(struct fuse_conn_info *conn,
+		      struct fuse_config *cfg)
 {
-    const char *filename;
-    const char *contents;
-    int show_help;
-} options;
+	(void) conn;
+	cfg->use_ino = 1;
 
-#define OPTION(t, p)                      \
-    {                                     \
-        t, offsetof(struct options, p), 1 \
-    }
-static const struct fuse_opt option_spec[] = {
-    OPTION("--name=%s", filename), OPTION("--contents=%s", contents),
-    OPTION("-h", show_help), OPTION("--help", show_help), FUSE_OPT_END};
+	/* Pick up changes from lower filesystem right away. This is
+	   also necessary for better hardlink support. When the kernel
+	   calls the unlink() handler, it does not know the inode of
+	   the to-be-removed entry and can therefore not invalidate
+	   the cache of the associated inode - resulting in an
+	   incorrect st_nlink value being reported for any remaining
+	   hardlinks to this inode. */
+	cfg->entry_timeout = 0;
+	cfg->attr_timeout = 0;
+	cfg->negative_timeout = 0;
 
-static void *hello_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
-{
-    (void)conn;
-    cfg->kernel_cache = 1;
-    return NULL;
+	return NULL;
 }
 
-static int hello_getattr(const char *path, struct stat *stbuf,
-                         struct fuse_file_info *fi)
+static int xmp_getattr(const char *path, struct stat *stbuf,
+		       struct fuse_file_info *fi)
 {
-    (void)fi;
-    int res = 0;
+	(void) fi;
+	int res;
 
-    memset(stbuf, 0, sizeof(struct stat));
-    if (strcmp(path, "/") == 0)
-    {
-        stbuf->st_mode = S_IFDIR | 0755;
-        stbuf->st_nlink = 2;
-    }
-    else if (strcmp(path + 1, options.filename) == 0)
-    {
-        stbuf->st_mode = S_IFREG | 0444;
-        stbuf->st_nlink = 1;
-        stbuf->st_size = strlen(options.contents);
-    }
-    else
-        res = -ENOENT;
+	res = lstat(path, stbuf);
+	if (res == -1)
+		return -errno;
 
-    return res;
+	return 0;
 }
 
-static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-                         off_t offset, struct fuse_file_info *fi,
-                         enum fuse_readdir_flags flags)
+static int xmp_access(const char *path, int mask)
 {
-    (void)offset;
-    (void)fi;
-    (void)flags;
+	int res;
 
-    if (strcmp(path, "/") != 0) return -ENOENT;
+	res = access(path, mask);
+	if (res == -1)
+		return -errno;
 
-    filler(buf, ".", NULL, 0, 0);
-    filler(buf, "..", NULL, 0, 0);
-    filler(buf, options.filename, NULL, 0, 0);
-
-    return 0;
+	return 0;
 }
 
-static int hello_open(const char *path, struct fuse_file_info *fi)
+static int xmp_readlink(const char *path, char *buf, size_t size)
 {
-    if (strcmp(path + 1, options.filename) != 0) return -ENOENT;
+	int res;
 
-    if ((fi->flags & O_ACCMODE) != O_RDONLY) return -EACCES;
+	res = readlink(path, buf, size - 1);
+	if (res == -1)
+		return -errno;
 
-    return 0;
+	buf[res] = '\0';
+	return 0;
 }
 
-static int hello_read(const char *path, char *buf, size_t size, off_t offset,
-                      struct fuse_file_info *fi)
+
+static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
+		       off_t offset, struct fuse_file_info *fi,
+		       enum fuse_readdir_flags flags)
 {
-    size_t len;
-    (void)fi;
-    if (strcmp(path + 1, options.filename) != 0) return -ENOENT;
+	DIR *dp;
+	struct dirent *de;
 
-    len = strlen(options.contents);
-    if (offset < len)
-    {
-        if (offset + size > len) size = len - offset;
-        memcpy(buf, options.contents + offset, size);
-    }
-    else
-        size = 0;
+	(void) offset;
+	(void) fi;
+	(void) flags;
 
-    return size;
+	dp = opendir(path);
+	if (dp == NULL)
+		return -errno;
+
+	while ((de = readdir(dp)) != NULL) {
+		struct stat st;
+		memset(&st, 0, sizeof(st));
+		st.st_ino = de->d_ino;
+		st.st_mode = de->d_type << 12;
+		if (filler(buf, de->d_name, &st, 0, (fuse_fill_dir_flags)0))
+			break;
+	}
+
+	closedir(dp);
+	return 0;
 }
 
-static struct fuse_operations hello_oper = {
-    .getattr = hello_getattr,
-    .open = hello_open,
-    .read = hello_read,
-    .readdir = hello_readdir,
-    .init = hello_init,
+static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
+{
+	int res;
+
+	/* On Linux this could just be 'mknod(path, mode, rdev)' but this
+	   is more portable */
+	if (S_ISREG(mode)) {
+		res = open(path, O_CREAT | O_EXCL | O_WRONLY, mode);
+		if (res >= 0)
+			res = close(res);
+	} else if (S_ISFIFO(mode))
+		res = mkfifo(path, mode);
+	else
+		res = mknod(path, mode, rdev);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_mkdir(const char *path, mode_t mode)
+{
+	int res;
+
+	res = mkdir(path, mode);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_unlink(const char *path)
+{
+	int res;
+
+	res = unlink(path);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_rmdir(const char *path)
+{
+	int res;
+
+	res = rmdir(path);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_symlink(const char *from, const char *to)
+{
+	int res;
+
+	res = symlink(from, to);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_rename(const char *from, const char *to, unsigned int flags)
+{
+	int res;
+
+	if (flags)
+		return -EINVAL;
+
+	res = rename(from, to);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_link(const char *from, const char *to)
+{
+	int res;
+
+	res = link(from, to);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_chmod(const char *path, mode_t mode,
+		     struct fuse_file_info *fi)
+{
+	(void) fi;
+	int res;
+
+	res = chmod(path, mode);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_chown(const char *path, uid_t uid, gid_t gid,
+		     struct fuse_file_info *fi)
+{
+	(void) fi;
+	int res;
+
+	res = lchown(path, uid, gid);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_truncate(const char *path, off_t size,
+			struct fuse_file_info *fi)
+{
+	int res;
+
+	if (fi != NULL)
+		res = ftruncate(fi->fh, size);
+	else
+		res = truncate(path, size);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_create(const char *path, mode_t mode,
+		      struct fuse_file_info *fi)
+{
+	int res;
+
+	res = open(path, fi->flags, mode);
+	if (res == -1)
+		return -errno;
+
+	fi->fh = res;
+	return 0;
+}
+
+static int xmp_open(const char *path, struct fuse_file_info *fi)
+{
+	int res;
+
+	res = open(path, fi->flags);
+	if (res == -1)
+		return -errno;
+
+	fi->fh = res;
+	return 0;
+}
+
+static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
+		    struct fuse_file_info *fi)
+{
+	int fd;
+	int res;
+
+	if(fi == NULL)
+		fd = open(path, O_RDONLY);
+	else
+		fd = fi->fh;
+	
+	if (fd == -1)
+		return -errno;
+
+	res = pread(fd, buf, size, offset);
+	if (res == -1)
+		res = -errno;
+
+	if(fi == NULL)
+		close(fd);
+	return res;
+}
+
+static int xmp_write(const char *path, const char *buf, size_t size,
+		     off_t offset, struct fuse_file_info *fi)
+{
+	int fd;
+	int res;
+
+	(void) fi;
+	if(fi == NULL)
+		fd = open(path, O_WRONLY);
+	else
+		fd = fi->fh;
+	
+	if (fd == -1)
+		return -errno;
+
+	res = pwrite(fd, buf, size, offset);
+	if (res == -1)
+		res = -errno;
+
+	if(fi == NULL)
+		close(fd);
+	return res;
+}
+
+static int xmp_statfs(const char *path, struct statvfs *stbuf)
+{
+	int res;
+
+	res = statvfs(path, stbuf);
+	if (res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int xmp_release(const char *path, struct fuse_file_info *fi)
+{
+	(void) path;
+	close(fi->fh);
+	return 0;
+}
+
+static int xmp_fsync(const char *path, int isdatasync,
+		     struct fuse_file_info *fi)
+{
+	/* Just a stub.	 This method is optional and can safely be left
+	   unimplemented */
+
+	(void) path;
+	(void) isdatasync;
+	(void) fi;
+	return 0;
+}
+
+static struct fuse_operations xmp_oper = {
+	.getattr	= xmp_getattr,
+	.readlink	= xmp_readlink,
+	.mknod		= xmp_mknod,
+	.mkdir		= xmp_mkdir,
+	.unlink		= xmp_unlink,
+	.rmdir		= xmp_rmdir,
+	.symlink	= xmp_symlink,
+	.rename		= xmp_rename,
+	.link		= xmp_link,
+	.chmod		= xmp_chmod,
+	.chown		= xmp_chown,
+	.truncate	= xmp_truncate,
+	.open		= xmp_open,
+	.read		= xmp_read,
+	.write		= xmp_write,
+	.statfs		= xmp_statfs,
+	.release	= xmp_release,
+	.fsync		= xmp_fsync,
+	.readdir	= xmp_readdir,
+	.init           = xmp_init,
+	.access		= xmp_access,
+	.create 	= xmp_create
 };
-
-static void show_help(const char *progname)
-{
-    printf("usage: %s [options] <mountpoint>\n\n", progname);
-    printf(
-        "File-system specific options:\n"
-        "    --name=<s>          Name of the \"hello\" file\n"
-        "                        (default: \"hello\")\n"
-        "    --contents=<s>      Contents \"hello\" file\n"
-        "                        (default \"Hello, World!\\n\")\n"
-        "\n");
-}
 
 int main(int argc, char *argv[])
 {
-    int ret;
-    struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-
-    /* Set defaults -- we have to use strdup so that
-       fuse_opt_parse can free the defaults if other
-       values are specified */
-    options.filename = strdup("hello");
-    options.contents = strdup("Hello World!\n");
-
-    /* Parse options */
-    if (fuse_opt_parse(&args, &options, option_spec, NULL) == -1) return 1;
-
-    /* When --help is specified, first print our own file-system
-       specific help text, then signal fuse_main to show
-       additional help (by adding `--help` to the options again)
-       without usage: line (by setting argv[0] to the empty
-       string) */
-    if (options.show_help)
-    {
-        show_help(argv[0]);
-        assert(fuse_opt_add_arg(&args, "--help") == 0);
-        args.argv[0] = (char *)"";
-    }
-
-    ret = fuse_main(args.argc, args.argv, &hello_oper, NULL);
-    fuse_opt_free_args(&args);
-    return ret;
+	umask(0);
+	return fuse_main(argc, argv, &xmp_oper, NULL);
 }
