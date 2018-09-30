@@ -4,7 +4,7 @@ config?=debug
 build_dir:=build/${config}
 
 client_compile_flags:= -Isrc -Ifuse-3/include -std=c++17 -Wall -Werror -MMD -MP -D_FILE_OFFSET_BITS=64 -Winvalid-pch -D_REENTRANT -Wextra -Wno-sign-compare -fno-strict-aliasing -fpermissive -Wno-unused-result -Wno-missing-field-initializers
-client_link_flags:= -lstdc++ -pthread -Lfuse-3/build/lib -lfuse3 '-Wl,-rpath,$$ORIGIN/lib'
+client_link_flags:= -lstdc++ -pthread -lfuse3
 
 gtest_dir:= googletest/googletest
 gtest_compile_flags:= -isystem ${gtest_dir}/include -I${gtest_dir}

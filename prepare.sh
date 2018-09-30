@@ -1,7 +1,8 @@
-pushd fuse-3
+cd fuse-3
 meson build
 set -e
-pushd build
+cd build
+meson configure -Dprefix=/usr
+ninja reconfigure
 ninja
 sudo ninja install
-
