@@ -1,5 +1,5 @@
-cpp_compiler?=gcc
-linker?=gcc
+cpp_compiler?=clang
+linker?=clang
 config?=debug
 build_dir:=build/${config}
 
