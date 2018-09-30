@@ -25,8 +25,13 @@ else
 endif
 
 
-.PHONY: all
-all: ${build_dir}/client ${build_dir}/utest
+.PHONY: all client utest
+all: client utest
+
+utest: ${build_dir}/utest
+
+client: ${build_dir}/client 
+
 
 clean:
 	rm -f ${build_dir}/client
