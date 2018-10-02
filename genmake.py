@@ -164,7 +164,7 @@ class GenMake:
         self.out.write(f"{target}: {list2str(sources)}\n")
         self.out.write(f".PHONY: {target}\n\n")
 
-    def clean(self, rmdir=True):
+    def clean(self, rmdir=False):
         self.out.write(f"clean:\n")
         self.out.write(f"\trm -f {list2str(self.file_targets)}\n")
         self.out.write(f"\trm -f {list2str(self.file_byprods)}\n")
