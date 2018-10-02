@@ -24,23 +24,3 @@ else
 	endif
 endif
 
-
-.PHONY: all client utest
-all: client utest
-
-utest: ${build_dir}/utest
-
-client: ${build_dir}/client 
-
-
-clean:
-	rm -f ${build_dir}/client
-	rm -f ${build_dir}/utest
-	rm -f $(shell find build -name "*.o")
-	rm -f $(shell find build -name "*.d")
-
-#body
-
--include ${deps}
-
-
