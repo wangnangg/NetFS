@@ -1,6 +1,6 @@
 include makefile.in 
 
-all: ${build_dir}/client ${build_dir}/utest 
+all: ${build_dir}/client ${build_dir}/server ${build_dir}/utest 
 .PHONY: all
 
 ${build_dir}/client_src/main.o: client_src/main.cpp | ${build_dir}/client_src
@@ -16,6 +16,17 @@ ${build_dir}/client: ${build_dir}/client_src/main.o  | ${build_dir}
 
 ${build_dir}:
 	mkdir -p ${build_dir}
+
+${build_dir}/server_src/main.o: server_src/main.cpp | ${build_dir}/server_src
+	${cpp_compiler} ${server_compile_flags} -MMD -MP -c server_src/main.cpp -o ${build_dir}/server_src/main.o
+
+-include ${build_dir}/server_src/main.d 
+
+${build_dir}/server_src:
+	mkdir -p ${build_dir}/server_src
+
+${build_dir}/server: ${build_dir}/server_src/main.o  | ${build_dir} 
+	${linker} ${build_dir}/server_src/main.o  ${server_link_flags} -o ${build_dir}/server
 
 ${build_dir}/googletest/googletest/src/gtest-all.o: googletest/googletest/src/gtest-all.cc | ${build_dir}/googletest/googletest/src
 	${cpp_compiler} ${gtest_compile_flags} -MMD -MP -c googletest/googletest/src/gtest-all.cc -o ${build_dir}/googletest/googletest/src/gtest-all.o
@@ -42,7 +53,7 @@ ${build_dir}/utest: ${build_dir}/googletest/googletest/src/gtest-all.o ${build_d
 	${linker} ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/example.o  ${utest_link_flags} -o ${build_dir}/utest
 
 clean:
-	rm -f ${build_dir}/utest ${build_dir}/client_src/main.o ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/client 
-	rm -f ${build_dir}/client_src/main.d ${build_dir}/googletest/googletest/src/gtest-all.d ${build_dir}/utest_src/main.d ${build_dir}/utest_src/example.d 
+	rm -f ${build_dir}/server ${build_dir}/client ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/client_src/main.o ${build_dir}/utest_src/main.o ${build_dir}/utest ${build_dir}/utest_src/example.o ${build_dir}/server_src/main.o 
+	rm -f ${build_dir}/server_src/main.d ${build_dir}/googletest/googletest/src/gtest-all.d ${build_dir}/utest_src/main.d ${build_dir}/utest_src/example.d ${build_dir}/client_src/main.d 
 .PHONY: clean
 

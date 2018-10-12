@@ -177,15 +177,17 @@ class GenMake:
             f.write(self.out.getvalue())
 
 
-client_compile_flags = "${client_compile_flags}"
-client_link_flags = "${client_link_flags}"
-
 g = GenMake("${build_dir}")
 g.include("makefile.in")
-g.aggregate("all", ["client", "utest"])
+g.aggregate("all", ["client", "server", "utest"])
 
-src = find_files_ext("client_src", ".cpp")
-client, obj = g.build_cpp("client", src, client_compile_flags, client_link_flags)
+client_src = find_files_ext("client_src", ".cpp")
+client, client_obj = g.build_cpp(
+    "client", client_src, "${client_compile_flags}", "${client_link_flags}")
+
+server_src = find_files_ext("server_src", ".cpp")
+server, server_obj = g.build_cpp(
+    "server", server_src, "${server_compile_flags}", "${server_link_flags}")
 
 gtest_src = "googletest/googletest/src/gtest-all.cc"
 gtest_obj = g.compile_cpp(gtest_src, "${gtest_compile_flags}")
@@ -193,7 +195,10 @@ gtest_obj = g.compile_cpp(gtest_src, "${gtest_compile_flags}")
 utest_src = find_files_ext("utest_src", ".cpp")
 utest_obj = g.compile_cpp(utest_src, "${utest_compile_flags}")
 
-obj_nomain = list(filter(lambda f: os.path.basename(f) != "main.o", obj))
+obj_nomain = list(
+    filter(lambda f: os.path.basename(f) != "main.o",
+           [*client_obj, *server_obj]))
+
 g.link_cpp("utest", gtest_obj + utest_obj + obj_nomain, "${utest_link_flags}")
 
 g.clean()
