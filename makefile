@@ -53,7 +53,7 @@ ${build_dir}/utest: ${build_dir}/googletest/googletest/src/gtest-all.o ${build_d
 	${linker} ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/example.o  ${utest_link_flags} -o ${build_dir}/utest
 
 clean:
-	rm -f ${build_dir}/server ${build_dir}/client ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/client_src/main.o ${build_dir}/utest_src/main.o ${build_dir}/utest ${build_dir}/utest_src/example.o ${build_dir}/server_src/main.o 
-	rm -f ${build_dir}/server_src/main.d ${build_dir}/googletest/googletest/src/gtest-all.d ${build_dir}/utest_src/main.d ${build_dir}/utest_src/example.d ${build_dir}/client_src/main.d 
+	rm -f ${build_dir}/client_src/main.o ${build_dir}/server ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/utest_src/example.o ${build_dir}/utest ${build_dir}/client ${build_dir}/utest_src/main.o ${build_dir}/server_src/main.o 
+	rm -f ${build_dir}/utest_src/main.d ${build_dir}/server_src/main.d ${build_dir}/googletest/googletest/src/gtest-all.d ${build_dir}/utest_src/example.d ${build_dir}/client_src/main.d 
 .PHONY: clean
 
