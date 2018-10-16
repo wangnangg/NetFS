@@ -26,7 +26,12 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
+#include <iostream>
+#include <memory>
+#include <stdexcept>
 #include "fuse.h"
+#include "net.hpp"
+#include "netfs.hpp"
 
 /*
  * Command line options
@@ -39,6 +44,8 @@ static struct options
 {
     const char *filename;
     const char *contents;
+    const char *ipv4addr;
+    const char *port;
     int show_help;
 } options;
 
@@ -47,13 +54,20 @@ static struct options
         t, offsetof(struct options, p), 1 \
     }
 static const struct fuse_opt option_spec[] = {
-    OPTION("--name=%s", filename), OPTION("--contents=%s", contents),
-    OPTION("-h", show_help), OPTION("--help", show_help), FUSE_OPT_END};
+    OPTION("--name=%s", filename),
+    OPTION("--contents=%s", contents),
+    OPTION("--ip=%s", ipv4addr),
+    OPTION("-i=%s", ipv4addr),
+    OPTION("--port=%s", port),
+    OPTION("-p=%s", port),
+    OPTION("-h", show_help),
+    OPTION("--help", show_help),
+    FUSE_OPT_END};
 
 static void *hello_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 {
     (void)conn;
-    cfg->kernel_cache = 1;
+    cfg->kernel_cache = 0;
     return NULL;
 }
 
@@ -61,24 +75,8 @@ static int hello_getattr(const char *path, struct stat *stbuf,
                          struct fuse_file_info *fi)
 {
     (void)fi;
-    int res = 0;
-
-    memset(stbuf, 0, sizeof(struct stat));
-    if (strcmp(path, "/") == 0)
-    {
-        stbuf->st_mode = S_IFDIR | 0755;
-        stbuf->st_nlink = 2;
-    }
-    else if (strcmp(path + 1, options.filename) == 0)
-    {
-        stbuf->st_mode = S_IFREG | 0444;
-        stbuf->st_nlink = 1;
-        stbuf->st_size = strlen(options.contents);
-    }
-    else
-        res = -ENOENT;
-
-    return res;
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    return -fs->stat(path, *stbuf);
 }
 
 static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
@@ -88,41 +86,39 @@ static int hello_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     (void)offset;
     (void)fi;
     (void)flags;
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
 
-    if (strcmp(path, "/") != 0) return -ENOENT;
+    std::vector<NetFS::Dirent> dirs;
+    int res = fs->readdir(path, dirs);
+    if (res != 0)
+    {
+        return -res;
+    }
 
-    filler(buf, ".", NULL, 0, (fuse_fill_dir_flags)0);
-    filler(buf, "..", NULL, 0, (fuse_fill_dir_flags)0);
-    filler(buf, options.filename, NULL, 0, (fuse_fill_dir_flags)0);
-
+    for (const auto &d : dirs)
+    {
+        filler(buf, d.name.c_str(), NULL, 0, (fuse_fill_dir_flags)0);
+    }
     return 0;
 }
 
 static int hello_open(const char *path, struct fuse_file_info *fi)
 {
-    if (strcmp(path + 1, options.filename) != 0) return -ENOENT;
-
-    if ((fi->flags & O_ACCMODE) != O_RDONLY) return -EACCES;
-
-    return 0;
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int res = fs->open(path, fi->flags);
+    return -res;
 }
 
 static int hello_read(const char *path, char *buf, size_t size, off_t offset,
                       struct fuse_file_info *fi)
 {
-    size_t len;
     (void)fi;
-    if (strcmp(path + 1, options.filename) != 0) return -ENOENT;
-
-    len = strlen(options.contents);
-    if (offset < len)
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int res = fs->read(path, offset, buf, size);
+    if (res != 0)
     {
-        if (offset + size > len) size = len - offset;
-        memcpy(buf, options.contents + offset, size);
+        return -res;
     }
-    else
-        size = 0;
-
     return size;
 }
 
@@ -143,6 +139,10 @@ static void show_help(const char *progname)
         "                        (default: \"hello\")\n"
         "    --contents=<s>      Contents \"hello\" file\n"
         "                        (default \"Hello, World!\\n\")\n"
+        "    --ip=<s>\n"
+        "    -i=<s>              server IPv4 address\n"
+        "    --port=<s>\n"
+        "    -p=<s>              server port number\n"
         "\n");
 }
 
@@ -156,10 +156,15 @@ int main(int argc, char *argv[])
        values are specified */
     options.filename = strdup("hello");
     options.contents = strdup("Hello World!\n");
+    options.ipv4addr = strdup("");
+    options.port = strdup("");
 
     /* Parse options */
     if (fuse_opt_parse(&args, &options, option_spec, NULL) == -1) return 1;
 
+    uint32_t ip;
+    uint16_t port;
+    std::unique_ptr<NetFS> netfs = nullptr;
     /* When --help is specified, first print our own file-system
        specific help text, then signal fuse_main to show
        additional help (by adding `--help` to the options again)
@@ -171,8 +176,24 @@ int main(int argc, char *argv[])
         assert(fuse_opt_add_arg(&args, "--help") == 0);
         args.argv[0] = (char *)"";
     }
+    else
+    {
+        try
+        {
+            ip = parseIpAddr(options.ipv4addr);
+            port = parsePort(options.port);
+        }
+        catch (std::exception &err)
+        {
+            std::cerr << err.what() << std::endl;
+            return EXIT_FAILURE;
+        }
+        netfs = std::make_unique<NetFS>(ip, port);
+    }
 
-    ret = fuse_main(args.argc, args.argv, &hello_oper, NULL);
-    fuse_opt_free_args(&args);
+    ret = fuse_main(args.argc, args.argv, &hello_oper, netfs.get());
+
+    // free fails when -h, don't know why
+    // fuse_opt_free_args(&args);
     return ret;
 }

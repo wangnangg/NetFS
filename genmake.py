@@ -66,6 +66,7 @@ def change_ext(f, ext):
 def list2str(li):
     if isinstance(li, str):
         return li + ' '
+    li = sorted(list(li))
     with io.StringIO() as sio:
         for e in li:
             sio.write(e)
