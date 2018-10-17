@@ -1,5 +1,7 @@
 -std=c++17
--I../src
+-I../client_src
+-I../server_src
+-I../common
 -I../fuse-3/include
 -I../googletest/googletest/include
 -I../googletest/googletest

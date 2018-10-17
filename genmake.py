@@ -182,13 +182,18 @@ g = GenMake("${build_dir}")
 g.include("makefile.in")
 g.aggregate("all", ["client", "server", "utest"])
 
+common_src = find_files_ext("common", ".cpp")
+common_obj = g.compile_cpp(common_src, "${common_compile_flags}")
+
 client_src = find_files_ext("client_src", ".cpp")
-client, client_obj = g.build_cpp(
-    "client", client_src, "${client_compile_flags}", "${client_link_flags}")
+client_obj = g.compile_cpp(client_src, "${client_compile_flags}")
+
+client = g.link_cpp("client", common_obj + client_obj, "${client_link_flags}")
 
 server_src = find_files_ext("server_src", ".cpp")
-server, server_obj = g.build_cpp(
-    "server", server_src, "${server_compile_flags}", "${server_link_flags}")
+server_obj = g.compile_cpp(server_src, "${server_compile_flags}")
+
+server = g.link_cpp("server", common_obj + server_obj, "${server_link_flags}")
 
 gtest_src = "googletest/googletest/src/gtest-all.cc"
 gtest_obj = g.compile_cpp(gtest_src, "${gtest_compile_flags}")
@@ -198,7 +203,7 @@ utest_obj = g.compile_cpp(utest_src, "${utest_compile_flags}")
 
 obj_nomain = list(
     filter(lambda f: os.path.basename(f) != "main.o",
-           [*client_obj, *server_obj]))
+           [*client_obj, *server_obj, *common_obj]))
 
 g.link_cpp("utest", gtest_obj + utest_obj + obj_nomain, "${utest_link_flags}")
 

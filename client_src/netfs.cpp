@@ -10,6 +10,7 @@ NetFS::NetFS(uint32_t ip, uint16_t port)
     std::cout << "server addr: " << ip << ":" << port << std::endl;
 }
 const std::string content = "hello world!\n";
+
 int NetFS::open(const std::string& filename, int flags)
 {
     std::cout << "open" << std::endl;

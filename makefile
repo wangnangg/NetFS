@@ -64,11 +64,16 @@ ${build_dir}/utest_src/example.o: utest_src/example.cpp | ${build_dir}/utest_src
 
 -include ${build_dir}/utest_src/example.d 
 
-${build_dir}/utest: ${build_dir}/client_src/net.o ${build_dir}/client_src/netfs.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/net.o  | ${build_dir} 
-	${linker} ${build_dir}/client_src/net.o ${build_dir}/client_src/netfs.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/net.o  ${utest_link_flags} -o ${build_dir}/utest
+${build_dir}/utest_src/stream.o: utest_src/stream.cpp | ${build_dir}/utest_src
+	${cpp_compiler} ${utest_compile_flags} -MMD -MP -c utest_src/stream.cpp -o ${build_dir}/utest_src/stream.o
+
+-include ${build_dir}/utest_src/stream.d 
+
+${build_dir}/utest: ${build_dir}/client_src/net.o ${build_dir}/client_src/netfs.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/net.o ${build_dir}/utest_src/stream.o  | ${build_dir} 
+	${linker} ${build_dir}/client_src/net.o ${build_dir}/client_src/netfs.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/net.o ${build_dir}/utest_src/stream.o  ${utest_link_flags} -o ${build_dir}/utest
 
 clean:
-	rm -f ${build_dir}/client ${build_dir}/client_src/main.o ${build_dir}/client_src/net.o ${build_dir}/client_src/netfs.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/server ${build_dir}/server_src/main.o ${build_dir}/utest ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/net.o 
-	rm -f ${build_dir}/client_src/main.d ${build_dir}/client_src/net.d ${build_dir}/client_src/netfs.d ${build_dir}/googletest/googletest/src/gtest-all.d ${build_dir}/server_src/main.d ${build_dir}/utest_src/example.d ${build_dir}/utest_src/main.d ${build_dir}/utest_src/net.d 
+	rm -f ${build_dir}/client ${build_dir}/client_src/main.o ${build_dir}/client_src/net.o ${build_dir}/client_src/netfs.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/server ${build_dir}/server_src/main.o ${build_dir}/utest ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/net.o ${build_dir}/utest_src/stream.o 
+	rm -f ${build_dir}/client_src/main.d ${build_dir}/client_src/net.d ${build_dir}/client_src/netfs.d ${build_dir}/googletest/googletest/src/gtest-all.d ${build_dir}/server_src/main.d ${build_dir}/utest_src/example.d ${build_dir}/utest_src/main.d ${build_dir}/utest_src/net.d ${build_dir}/utest_src/stream.d 
 .PHONY: clean
 
