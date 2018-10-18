@@ -1,0 +1,69 @@
+**** StorageServer Constructed ****
+@@@ Storage Server Started @@@
+@@@ Listening on port 55555 @@@
+@@@ Current thread count: 0 @@@
+@@@ Max thread count set at: 4096 @@@
+47 bytes read into buffer of size 4096
+======================================================
+Received message: 
+Hello Storage Server. Please response to me 0.
+
+======================================================
+47 bytes read into buffer of size 4096
+======================================================
+Received message: 
+Hello Storage Server. Please response to me 1.
+
+======================================================
+47 bytes read into buffer of size 4096
+======================================================
+Received message: 
+Hello Storage Server. Please response to me 2.
+
+======================================================
+47 bytes read into buffer of size 4096
+======================================================
+Received message: 
+Hello Storage Server. Please response to me 3.
+
+======================================================
+47 bytes read into buffer of size 4096
+======================================================
+Received message: 
+Hello Storage Server. Please response to me 4.
+
+======================================================
+47 bytes read into buffer of size 4096
+======================================================
+Received message: 
+Hello Storage Server. Please response to me 5.
+
+======================================================
+47 bytes read into buffer of size 4096
+======================================================
+Received message: 
+Hello Storage Server. Please response to me 6.
+
+======================================================
+47 bytes read into buffer of size 4096
+======================================================
+Received message: 
+Hello Storage Server. Please response to me 7.
+
+======================================================
+47 bytes read into buffer of size 4096
+======================================================
+Received message: 
+Hello Storage Server. Please response to me 8.
+
+======================================================
+47 bytes read into buffer of size 4096
+======================================================
+Received message: 
+Hello Storage Server. Please response to me 9.
+
+======================================================
+@@@ Storage server shutting down...  @@@
+@@@ Total up time (us) = 22947864 @@@
+@@@ Total up time (seconds) = 22.9479 @@@
+**** StorageServer Destroyed ****
