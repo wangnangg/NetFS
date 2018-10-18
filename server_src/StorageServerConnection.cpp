@@ -43,7 +43,7 @@ void StorageServerConnection::run(){
 
     size_t readBytes = this->socket().receiveBytes(Buffer, BUFF_SIZE);
 
-    
+    std::cout << "Received message from address: " << this->socket().peerAddress().toString() << std::endl;
     std::cout << readBytes << " bytes read into buffer of size "<< BUFF_SIZE
     << std::endl;
     std::cout << "======================================================" << std::endl;
