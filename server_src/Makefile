@@ -2,7 +2,7 @@
 CC = g++
 CFLAGS = -o 
 OPTS = -O2
-LINKED = -lPocoNet -lPocoUtil -lPocoFoundation -lPocoCrypto -lPocoNetSSL
+LINKED = -lPocoNet -lPocoUtil -lPocoFoundation
 OBJ = StorageServerConnection.o StorageServerConnectionFactory.o StorageServer.o StorageServerParams.o StorageInterface.o 
 
 all:
