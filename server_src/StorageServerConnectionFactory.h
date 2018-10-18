@@ -1,8 +1,6 @@
 #include <Poco/Net/TCPServerConnectionFactory.h>
 #include <Poco/SharedPtr.h>
 #include <Poco/Net/StreamSocket.h>
-#include <pqxx/pqxx>
-#include <pqxx/except.hxx>
 #include "StorageServerConnection.h"
 
 class StorageServerConnectionFactory : public Poco::Net::TCPServerConnectionFactory{

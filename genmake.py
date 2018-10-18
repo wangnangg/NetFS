@@ -202,7 +202,7 @@ utest_src = find_files_ext("utest_src", ".cpp")
 utest_obj = g.compile_cpp(utest_src, "${utest_compile_flags}")
 
 obj_nomain = list(
-    filter(lambda f: os.path.basename(f) != "main.o",
+    filter(lambda f: os.path.basename(f) != "main.o" and os.path.basename(f) != "StorageServer.o" ,
            [*client_obj, *server_obj, *common_obj]))
 
 g.link_cpp("utest", gtest_obj + utest_obj + obj_nomain, "${utest_link_flags}")
