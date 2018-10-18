@@ -9,6 +9,25 @@
 #include <vector>
 #include "serial.hpp"
 
+/* All message classes should derive from the *Msg* class, which contains one
+ * field: message type. The derived message can (and should) have its own
+ * fields. To implement (un)serialization, a derived Msg class must:
+ *
+ * 1) add an new entry in enum Msg::Type.
+ *
+ * 2) the constructor must call Msg(Type type) with the newly added entry
+ *
+ * 3) implement a member function serializeBody that writes its fields into
+ * the stream.
+ *
+ * 4) implement a static function unserialize that reads its body from the
+ * stream and construct an instance of its own.
+ *
+ * 5) add a pair (msg type, the unserialize function) to the hash map
+ * *unserializorLookup*. By doing this, the unserializeMsg function is able to
+ * look up the unserialize function from the type read from the stream.
+ */
+
 class Msg
 {
 public:

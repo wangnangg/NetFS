@@ -7,18 +7,31 @@
 
 /* For serialize:
  * the object *val* is serialized into the
- * stream. errors are propagated throw exceptions. Exceptions are
- * system_errors, which are due to network problems.
+ * stream. The stream is represented by *SWriter*, which is just a function
+ * wrapper, that should write every bytes in buf to the underlying stream.
+ * This design is chosen because the server and client will have different
+ * stream implementation (client will use FdWriter and server will use POCO).
+ * errors are propagated by throwing exceptions from *SWriter*, likely due to
+ * network problems.
  *
  * For unserialize:
- * an object T is reconstructed from the stream. errors are propagated throw
- * exceptions. Exceptions are 1) system_errors, because of network problem. 2)
+ * an object T is reconstructed from the stream. *SReader* uses a simliar
+ * design. Errors are propagated by throwing exceptions. Exceptions are likely
+ * due to 1) system_errors, because of network problem. 2)
  * UnserializeFormatError, due to invalid format in the stream.
+ *
+ * Example usage can be seen in the unit tests.
  */
 
 using SWriter = std::function<void(const char*, size_t)>;
 using SReader = std::function<void(char*, size_t)>;
 
+/* The following two templates are able to serialize and unserialize any POD
+ * types.
+ *
+ * enable_if_t part is only a trick to check if T is POD, nothing interesting
+ * here.
+ */
 template <typename T, std::enable_if_t<std::is_pod<T>::value, int> = 0>
 void serializePod(T val, const SWriter& sw)
 {
@@ -32,6 +45,9 @@ T unserializePod(const SReader& sr)
     sr((char*)&val, sizeof(val));
     return val;
 }
+
+/* For non-POD type, it must be done case by case.
+ */
 
 void serializeString(const std::string& str, const SWriter& sw);
 std::string unserializeString(const SReader& sr);
