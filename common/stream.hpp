@@ -1,12 +1,10 @@
 #pragma once
 #include <unistd.h>
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <cstdio>
 #include <stdexcept>
 #include <system_error>
-#include <vector>
 
 /* a buffered reader for reading from a file descriptor (or a socket really)
  */
@@ -122,7 +120,7 @@ public:
     // write will try to write as many as *size*, unless error, in that case,
     // return value may be smaller. error are generated throw system_error
     // exception
-    size_t write(char* buf, size_t size)
+    size_t write(const char* buf, size_t size)
     {
         size_t res = fwrite(buf, 1, size, _f);
         if (res < size)

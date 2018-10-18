@@ -29,3 +29,28 @@ TEST(stream, write_smoke)
     auto size = wr.write(buf, 10);
     ASSERT_EQ(size, 10);
 }
+
+TEST(stream, read_write)
+{
+    {
+        int fd = open("/tmp/ece590-utset-read-write", O_WRONLY | O_CREAT,
+                      S_IRWXU | S_IRWXG | S_IRWXO);
+        ASSERT_GT(fd, 0);
+        char buf[] = "0123456789";
+        auto wr = FdWriter(fd);
+        auto size = wr.write(buf, 10);
+        ASSERT_EQ(size, 10);
+    }
+    {
+        int fd = open("/tmp/ece590-utset-read-write", O_RDONLY);
+        ASSERT_GT(fd, 0);
+        char buf[10];
+        auto rd = FdReader(fd);
+        auto size = rd.read(buf, 10);
+        ASSERT_EQ(size, 10);
+        for (int i = 0; i < 10; i++)
+        {
+            ASSERT_EQ(buf[i], '0' + i);
+        }
+    }
+}

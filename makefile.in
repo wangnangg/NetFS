@@ -6,16 +6,16 @@ build_dir:=build/${config}
 common_compile_flags:= -Icommon -Ifuse-3/include -std=c++17 -Wall -Werror -MMD -MP -D_FILE_OFFSET_BITS=64 -Winvalid-pch -D_REENTRANT -Wextra -Wno-sign-compare -fno-strict-aliasing -fpermissive -Wno-unused-result -Wno-missing-field-initializers
 
 client_compile_flags:= -Iclient_src -Icommon -Ifuse-3/include -std=c++17 -Wall -Werror -MMD -MP -D_FILE_OFFSET_BITS=64 -Winvalid-pch -D_REENTRANT -Wextra -Wno-sign-compare -fno-strict-aliasing -fpermissive -Wno-unused-result -Wno-missing-field-initializers
-client_link_flags:= -lstdc++ -pthread -lfuse3
+client_link_flags:= -lstdc++ -pthread -lfuse3 -lm
 
 server_compile_flags:= -Iserver_src -Icommon -Ifuse-3/include -std=c++17 -Wall -Werror -MMD -MP -D_FILE_OFFSET_BITS=64 -Winvalid-pch -D_REENTRANT -Wextra -Wno-sign-compare -fno-strict-aliasing -fpermissive -Wno-unused-result -Wno-missing-field-initializers
-server_link_flags:= -lstdc++ -pthread -lfuse3 -lPocoNet -lPocoUtil -lPocoFoundation
+server_link_flags:= -lstdc++ -pthread -lfuse3 -lPocoNet -lPocoUtil -lPocoFoundation -lm
 
 gtest_dir:= googletest/googletest
 gtest_compile_flags:= -isystem ${gtest_dir}/include -I${gtest_dir}
 
 utest_compile_flags:=${gtest_compile_flags} ${client_compile_flags}
-utest_link_flags:= -lstdc++ -pthread
+utest_link_flags:= -lstdc++ -pthread -lm
 
 ifeq ($(config), release)
   client_compile_flags+= -g -O3

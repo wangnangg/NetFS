@@ -1,27 +1,32 @@
+#pragma once
 #include <stdint.h>
-#include <string.h>
 #include <memory>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <unordered_map>
 #include <vector>
+#include "stream.hpp"
 
-void serialize(uint32_t val, std::vector<char>& buf)
-{
-    auto start = (const char*)&val;
-    auto end = (const char*)&val + sizeof(val);
-    buf.insert(buf.end(), start, end);
-}
-void serialize(int32_t val, std::vector<char>& buf)
-{
-    auto start = (const char*)&val;
-    auto end = (const char*)&val + sizeof(val);
-    buf.insert(buf.end(), start, end);
-}
+/* For serialize:
+ * the object *val* is serialized into the
+ * stream. errors are propagated throw exceptions. Exceptions are
+ * system_errors, which are due to network problems.
+ *
+ * For unserialize:
+ * an object T is reconstructed from the stream. errors are propagated throw
+ * exceptions. Exceptions are 1) system_errors, because of network problem. 2)
+ * UnserializeFormatError, due to invalid format in the stream.
+ */
 
-void serialize(const std::string& str, std::vector<char>& buf)
-{
-    serialize((uint32_t)str.size(), buf);
-    buf.insert(buf.end(), str.begin(), str.end());
-}
+void serialize_uint32(uint32_t val, FdWriter& ws);
+uint32_t unserialize_uint32(FdReader& rs);
+
+void serialize_int32(int32_t val, FdWriter& ws);
+int32_t unserialize_int32(FdReader& rs);
+
+void serialize_string(const std::string& str, FdWriter& ws);
+std::string unserialize_string(FdReader& rs);
 
 class Msg
 {
@@ -30,50 +35,66 @@ public:
     {
         Open = 0,
         OpenResp,
-        Read,
-        ReadResp,
-        GetAttr,
-        GetAttrResp
     };
-    const int header_size = 8;  // 4 bytes for type, 4 bytes for
+
 private:
-    Type type;
+    Type _type;
 
 protected:
-    Msg(Type type) : type(type) {}
-    virtual void serializeBody(std::vector<char>& buf) const = 0;
+    Msg(Type type) : _type(type) {}
+    virtual void serializeBody(FdWriter& ws) const = 0;
 
 public:
-    void serialize(std::vector<char>& buf) const
+    void serialize(FdWriter& ws) const
     {
-        ::serialize((uint32_t)type, buf);
-        serializeBody(buf);
+        serialize_uint32((uint32_t)_type, ws);
+        serializeBody(ws);
     }
-    static std::unique_ptr<Msg> unserialize(std::vector<char>& buf);
+    virtual ~Msg() = default;
 };
-
-// a Msg object is constructed from buf, and buf is advanced to the next
-// unused byte
-// std::invalid_argument will be thrown if serialization is not possible
 
 class MsgOpen : public Msg
 {
+public:
     int32_t id;
     int32_t flag;
     std::string filename;
 
 public:
+    MsgOpen() : Msg(Msg::Open), id(0), flag(0), filename() {}
     MsgOpen(int32_t id, int32_t flag, std::string filename)
         : Msg(Msg::Open), id(id), flag(flag), filename(filename)
     {
     }
 
 protected:
-    virtual void serializeBody(std::vector<char>& buf) const
+    virtual void serializeBody(FdWriter& ws) const
     {
-        ::serialize(id, buf);
-        ::serialize(flag, buf);
-        ::serialize(filename, buf);
+        serialize_int32(id, ws);
+        serialize_int32(flag, ws);
+        serialize_string(filename, ws);
     }
-    static std::unique_ptr<MsgOpen> unserialize(std::vector<char>& buf);
+
+public:
+    static std::unique_ptr<MsgOpen> unserialize(FdReader& rs)
+    {
+        auto res = std::make_unique<MsgOpen>();
+        res->id = unserialize_int32(rs);
+        res->flag = unserialize_int32(rs);
+        res->filename = unserialize_string(rs);
+        return res;
+    }
 };
+
+class UnserializeFormatError : public std::runtime_error
+{
+public:
+    UnserializeFormatError(const std::string& tname)
+        : std::runtime_error(
+              "invalid format in unserializing an object of type: " + tname)
+    {
+    }
+};
+
+void serialize_msg(const Msg& msg, FdWriter& ws);
+std::unique_ptr<Msg> unserialize_msg(FdReader& rs);
