@@ -29,7 +29,7 @@ static SWriter tmpWriter(const std::string& fname)
 TEST(msg, serial_msg_open)
 {
     MsgOpen msg(123, 456, "ece590");
-    const std::string tmpfile = "ece590-msg-serial_msg_open";
+    const std::string tmpfile = "ece590-msg-serial";
     {
         auto ws = tmpWriter(tmpfile);
         serializeMsg(msg, ws);
@@ -41,5 +41,57 @@ TEST(msg, serial_msg_open)
         ASSERT_EQ(ptr->id, msg.id);
         ASSERT_EQ(ptr->flag, msg.flag);
         ASSERT_EQ(ptr->filename, msg.filename);
+    }
+}
+
+TEST(msg, serial_msg_open_resp)
+{
+    MsgOpenResp msg(234, -10);
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgOpenResp*>(res.get());
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->error, msg.error);
+    }
+}
+
+TEST(msg, serial_msg_stat)
+{
+    MsgStat msg(234, "myfile.cpp");
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgStat*>(res.get());
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->filename, msg.filename);
+    }
+}
+
+TEST(msg, serial_msg_stat_resp)
+{
+    MsgStatResp msg(234, {1000, 123});
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgStatResp*>(res.get());
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->stat.size, msg.stat.size);
+        ASSERT_EQ(ptr->stat.mode, msg.stat.mode);
     }
 }

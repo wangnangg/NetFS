@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <sys/stat.h>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -28,6 +29,40 @@
  * look up the unserialize function from the type read from the stream.
  */
 
+/* template
+
+   class Msg#NAME : public Msg
+   {
+   public:
+   int32_t id;
+   //more fields here
+   public:
+   Msg#NAME() : Msg(Msg::#NAME), id(0) //more fields
+
+   {}
+   Msg#NAME(int32_t id)
+   : Msg(Msg::#NAME), id(id) //more fields
+   {
+   }
+
+   protected:
+   virtual void serializeBody(const SWriter& ws) const
+   {
+   serializePod<int32_t>(id, ws);
+   //your code here
+   }
+
+   public:
+   static std::unique_ptr<Msg> unserialize(const SReader& rs)
+   {
+   auto res = std::make_unique<Msg#NAME>();
+   res->id = unserializePod<int32_t>(rs);
+   //your code here
+   return res;
+   }
+   };
+*/
+
 class Msg
 {
 public:
@@ -35,6 +70,8 @@ public:
     {
         Open = 0,
         OpenResp,
+        Stat,
+        StatResp,
     };
 
 private:
@@ -63,7 +100,7 @@ public:
 public:
     MsgOpen() : Msg(Msg::Open), id(0), flag(0), filename() {}
     MsgOpen(int32_t id, int32_t flag, std::string filename)
-        : Msg(Msg::Open), id(id), flag(flag), filename(filename)
+        : Msg(Msg::Open), id(id), flag(flag), filename(std::move(filename))
     {
     }
 
@@ -76,12 +113,113 @@ protected:
     }
 
 public:
-    static std::unique_ptr<MsgOpen> unserialize(const SReader& rs)
+    static std::unique_ptr<Msg> unserialize(const SReader& rs)
     {
         auto res = std::make_unique<MsgOpen>();
         res->id = unserializePod<int32_t>(rs);
         res->flag = unserializePod<int32_t>(rs);
         res->filename = unserializeString(rs);
+        return res;
+    }
+};
+
+class MsgOpenResp : public Msg
+{
+public:
+    int32_t id;
+    int32_t error;
+
+public:
+    MsgOpenResp() : Msg(Msg::OpenResp), id(0) {}
+    MsgOpenResp(int32_t id, int32_t error)
+        : Msg(Msg::OpenResp), id(id), error(error)
+    {
+    }
+
+protected:
+    virtual void serializeBody(const SWriter& ws) const
+    {
+        serializePod<int32_t>(id, ws);
+        serializePod<int32_t>(error, ws);
+    }
+
+public:
+    static std::unique_ptr<Msg> unserialize(const SReader& rs)
+    {
+        auto res = std::make_unique<MsgOpenResp>();
+        res->id = unserializePod<int32_t>(rs);
+        res->error = unserializePod<int32_t>(rs);
+        return res;
+    }
+};
+
+class MsgStat : public Msg
+{
+public:
+    int32_t id;
+    std::string filename;
+
+public:
+    MsgStat() : Msg(Msg::Stat), id(0), filename() {}
+    MsgStat(int32_t id, std::string filename)
+        : Msg(Msg::Stat), id(id), filename(std::move(filename))
+    {
+    }
+
+protected:
+    virtual void serializeBody(const SWriter& ws) const
+    {
+        serializePod<int32_t>(id, ws);
+        serializeString(filename, ws);
+    }
+
+public:
+    static std::unique_ptr<Msg> unserialize(const SReader& rs)
+    {
+        auto res = std::make_unique<MsgStat>();
+        res->id = unserializePod<int32_t>(rs);
+        res->filename = unserializeString(rs);
+        return res;
+    }
+};
+
+class MsgStatResp : public Msg
+{
+public:
+    int32_t id;
+
+// make sure no padding is inserted. The layout should be identical in any
+// machine.
+#pragma pack(push, 1)
+    struct Stat
+    {
+        uint64_t size;
+        uint64_t mode;
+    } stat;
+#pragma pack(pop)
+public:
+    MsgStatResp() : Msg(Msg::StatResp), id(0), stat()  // more fields
+
+    {
+    }
+    MsgStatResp(int32_t id, Stat stat)
+        : Msg(Msg::StatResp), id(id), stat(stat)  // more fields
+    {
+    }
+
+protected:
+    virtual void serializeBody(const SWriter& ws) const
+    {
+        serializePod<int32_t>(id, ws);
+        serializePod<Stat>(stat, ws);
+    }
+
+public:
+    static std::unique_ptr<Msg> unserialize(const SReader& rs)
+    {
+        auto res = std::make_unique<MsgStatResp>();
+        res->id = unserializePod<int32_t>(rs);
+        res->stat = unserializePod<Stat>(rs);
         return res;
     }
 };
