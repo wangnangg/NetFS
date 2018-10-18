@@ -1,61 +1,33 @@
 #include "msg.hpp"
 
-std::unordered_map<Msg::Type, std::unique_ptr<MsgOpen> (*)(FdReader& rs)>
+std::unordered_map<Msg::Type, std::unique_ptr<MsgOpen> (*)(const SReader& rs)>
     unserializorLookup = {{Msg::Open, MsgOpen::unserialize}};
 
-void serialize_uint32(uint32_t val, FdWriter& ws)
+void serializeString(const std::string& str, const SWriter& sw)
 {
-    ws.write((char*)&val, sizeof(val));
-}
-uint32_t unserialize_uint32(FdReader& rs)
-{
-    uint32_t val;
-    rs.read((char*)&val, sizeof(val));
-    return val;
-}
-
-void serialize_int32(int32_t val, FdWriter& ws)
-{
-    ws.write((char*)&val, sizeof(val));
-}
-int32_t unserialize_int32(FdReader& rs)
-{
-    int32_t val;
-    rs.read((char*)&val, sizeof(val));
-    return val;
-}
-
-void serialize_string(const std::string& str, FdWriter& ws)
-{
-    serialize_uint32((uint32_t)str.size(), ws);
+    serializePod<uint32_t>((uint32_t)str.size(), sw);
     if (str.size() > 0)
     {
-        ws.write(&str[0], str.size());
+        sw((const char*)&str[0], str.size());
     }
 }
 
-const size_t MAX_STRING_LENGTH = 1000;
-std::string unserialize_string(FdReader& rs)
+std::string unserializeString(const SReader& sr)
 {
-    uint32_t str_size;
-    rs.read((char*)&str_size, sizeof(str_size));
-    if (str_size > MAX_STRING_LENGTH)
-    {
-        throw UnserializeFormatError("string (too long)");
-    }
+    uint32_t str_size = unserializePod<uint32_t>(sr);
     std::string res(str_size, '\0');
     if (str_size > 0)
     {
-        rs.read(&res[0], str_size);
+        sr(&res[0], str_size);
     }
     return res;
 }
 
-void serialize_msg(const Msg& msg, FdWriter& ws) { msg.serialize(ws); }
+void serializeMsg(const Msg& msg, const SWriter& sr) { msg.serialize(sr); }
 
-std::unique_ptr<Msg> unserialize_msg(FdReader& rs)
+std::unique_ptr<Msg> unserializeMsg(const SReader& rs)
 {
-    Msg::Type type = (Msg::Type)unserialize_uint32(rs);
+    Msg::Type type = (Msg::Type)unserializePod<uint32_t>(rs);
     auto creator = unserializorLookup.at(type);
     return creator(rs);
 }

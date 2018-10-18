@@ -1,4 +1,4 @@
-#include "msg.hpp"
+#include "serial.hpp"
 #include <fcntl.h>
 #include <gtest/gtest.h>
 #include <sys/stat.h>
@@ -26,20 +26,36 @@ static SWriter tmpWriter(const std::string& fname)
     };
 }
 
-TEST(msg, serial_msg_open)
+TEST(serial, basic_types)
 {
-    MsgOpen msg(123, 456, "ece590");
-    const std::string tmpfile = "ece590-msg-serial_msg_open";
+    const std::string tmpfile = "ece590-serial-basic_types";
     {
+        int32_t x = -42;
         auto ws = tmpWriter(tmpfile);
-        serializeMsg(msg, ws);
+        serializePod<int32_t>(x, ws);
+        x = 43;
+        serializePod<uint32_t>((uint32_t)x, ws);
     }
     {
         auto rs = tmpReader(tmpfile);
-        auto res = unserializeMsg(rs);
-        auto ptr = dynamic_cast<MsgOpen*>(res.get());
-        ASSERT_EQ(ptr->id, msg.id);
-        ASSERT_EQ(ptr->flag, msg.flag);
-        ASSERT_EQ(ptr->filename, msg.filename);
+        int32_t y = unserializePod<int32_t>(rs);
+        ASSERT_EQ(y, -42);
+        uint32_t y2 = unserializePod<uint32_t>(rs);
+        ASSERT_EQ(y2, 43);
+    }
+}
+
+TEST(serial, string)
+{
+    std::string str = "Hello world!";
+    const std::string tmpfile = "ece590-serial-string";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeString(str, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeString(rs);
+        ASSERT_EQ(res, str);
     }
 }

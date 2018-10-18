@@ -32,10 +32,20 @@ public:
         }
     }
 
-    // copy is disabled as two instances reading from the same socket is not
-    // useful in our case
-    FdReader(const FdReader&) = delete;
-    FdReader& operator=(const FdReader&) = delete;
+    FdReader(const FdReader& rhs) : _f(nullptr)
+    {
+        if (rhs._f != nullptr)
+        {
+            _f = fdopen(dup(fileno(_f)), "r");
+            assert(_f != nullptr);
+        }
+    }
+    FdReader& operator=(const FdReader& rhs)
+    {
+        FdReader tmp = rhs;
+        std::swap(this->_f, tmp._f);
+        return *this;
+    }
 
     FdReader(FdReader&& reader)
     {
@@ -99,10 +109,20 @@ public:
         }
     }
 
-    // copy is disabled as two instances writing to the same socket is not
-    // useful in our case
-    FdWriter(const FdWriter&) = delete;
-    FdWriter& operator=(const FdWriter&) = delete;
+    FdWriter(const FdWriter& rhs) : _f(nullptr)
+    {
+        if (rhs._f != nullptr)
+        {
+            _f = fdopen(dup(fileno(_f)), "w");
+            assert(_f != nullptr);
+        }
+    }
+    FdWriter& operator=(const FdWriter& rhs)
+    {
+        FdWriter tmp = rhs;
+        std::swap(this->_f, tmp._f);
+        return *this;
+    }
 
     FdWriter(FdWriter&& rhs)
     {
