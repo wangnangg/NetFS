@@ -60,7 +60,6 @@ const std::string content = "hello world!\n";
 
 int NetFS::open(const std::string& filename, int flags)
 {
-    std::cout << "open" << std::endl;
     MsgOpen msg(id++, flags, filename);
     sendMsg(msg);
     auto resp = recvMsg();
@@ -71,36 +70,38 @@ int NetFS::open(const std::string& filename, int flags)
 }
 int NetFS::stat(const std::string& filename, struct stat& stbuf)
 {
-    std::cout << "stat" << std::endl;
+    MsgStat msg(id++, filename);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgStatResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    if (ptr->error != 0)
+    {
+        return ptr->error;
+    }
     memset(&stbuf, 0, sizeof(struct stat));
-    if (filename == "/")
-    {
-        stbuf.st_mode = S_IFDIR | 0755;
-        stbuf.st_nlink = 2;
-    }
-    else if (filename == "/hello")
-    {
-        stbuf.st_mode = S_IFREG | 0444;
-        stbuf.st_nlink = 1;
-        stbuf.st_size = content.size();
-    }
-    else
-    {
-        return ENOENT;
-    }
+    stbuf.st_size = ptr->stat.size;
+    stbuf.st_mode = ptr->stat.mode;
     return 0;
 }
 
 int NetFS::readdir(const std::string& filename, std::vector<Dirent>& dirs)
 {
-    std::cout << "readdir" << std::endl;
-    if (filename != "/")
+    MsgReaddir msg(id++, filename);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgReaddirResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    if (ptr->error != 0)
     {
-        return ENOENT;
+        return ptr->error;
     }
-    dirs.push_back(Dirent{"."});
-    dirs.push_back(Dirent{".."});
-    dirs.push_back(Dirent{"hello"});
+    for (auto n : ptr->dir_names)
+    {
+        dirs.push_back({n});
+    }
     return 0;
 }
 

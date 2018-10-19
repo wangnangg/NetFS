@@ -52,6 +52,34 @@ T unserializePod(const SReader& sr)
 void serializeString(const std::string& str, const SWriter& sw);
 std::string unserializeString(const SReader& sr);
 
+template <typename T>
+void serializeVector(
+    const std::vector<T>& vec,
+    const std::function<void(const T&, const SWriter&)>& serialElement,
+    const SWriter& sw)
+{
+    serializePod<uint64_t>((uint64_t)vec.size(), sw);
+    for (const auto& ele : vec)
+    {
+        serialElement(ele, sw);
+    }
+}
+
+template <typename T>
+std::vector<T> unserializeVector(
+    const std::function<T(const SReader&)>& unserialElement,
+    const SReader& sr)
+{
+    size_t size = unserializePod<uint64_t>(sr);
+    std::vector<T> vec;
+    vec.reserve(size);
+    for (size_t i = 0; i < size; i++)
+    {
+        vec.push_back(unserialElement(sr));
+    }
+    return vec;
+}
+
 class UnserializeFormatError : public std::runtime_error
 {
 public:

@@ -12,6 +12,7 @@
 #include <string>
 #include "fileop.hpp"
 #include "msg.hpp"
+#include "msg_response.hpp"
 
 #define BUFF_SIZE 4096
 //#define NUM_REQ 16000 // for terminating server for scalability testing
@@ -41,7 +42,7 @@ void StorageServerConnection::run()
             if (read_size == 0)
             {
                 // client closed (for unknown reason)
-                throw Poco::Net::NetException(
+                throw std::runtime_error(
                     "client closed with out say bye-bye. rude");
             }
             assert(read_size <= left);
@@ -58,7 +59,7 @@ void StorageServerConnection::run()
             int sent_size = this->socket().sendBytes(buf + off, left);
             if (sent_size <= 0)
             {
-                throw Poco::Net::NetException(
+                throw std::runtime_error(
                     "error happened while sending Msg to client");
             }
             assert(sent_size <= left);
@@ -66,38 +67,15 @@ void StorageServerConnection::run()
             off += sent_size;
         }
     };
-    try
+    while (true)
     {
-        while (true)
+        auto msg = unserializeMsg(unserial_reader);
+        auto responder = responder_map.at(msg->type);
+        auto resp_msg = responder(*msg, op);
+        if (resp_msg)
         {
-            auto msg = unserializeMsg(unserial_reader);
-            switch (msg->type)
-            {
-                case Msg::Open:
-                {
-                    auto ptr = dynamic_cast<MsgOpen*>(msg.get());
-                    assert(ptr);
-                    std::cout << "MsgOpen(id: " << ptr->id
-                              << ", filename: " << ptr->filename
-                              << ", flag: " << ptr->flag << std::endl;
-                    MsgOpenResp resp;
-                    resp.id = ptr->id;
-                    resp.error = op.open(ptr->filename, ptr->flag);
-                    serializeMsg(resp, serial_writer);
-                    break;
-                }
-                case Msg::Stat:
-                    std::cout << "MsgClose" << std::endl;
-                    break;
-                default:
-                    std::cout << "unexpected Msg type:" << msg->type
-                              << std::endl;
-            }
+            serializeMsg(*resp_msg, serial_writer);
         }
-    }
-    catch (const Poco::Net::NetException& pne)
-    {
-        std::cerr << pne.what() << std::endl;
     }
 }
 

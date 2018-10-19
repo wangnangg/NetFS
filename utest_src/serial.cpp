@@ -59,3 +59,18 @@ TEST(serial, string)
         ASSERT_EQ(res, str);
     }
 }
+
+TEST(serial, vector)
+{
+    std::vector<std::string> vec = {"str1", "string2", "str3"};
+    const std::string tmpfile = "ece590-serial-vector";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeVector<std::string>(vec, serializeString, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeVector<std::string>(unserializeString, rs);
+        ASSERT_EQ(res, vec);
+    }
+}

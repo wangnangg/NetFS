@@ -80,7 +80,7 @@ TEST(msg, serial_msg_stat)
 
 TEST(msg, serial_msg_stat_resp)
 {
-    MsgStatResp msg(234, {1000, 123});
+    MsgStatResp msg(234, 1, {1000, 123});
     const std::string tmpfile = "ece590-msg-serial";
     {
         auto ws = tmpWriter(tmpfile);
@@ -91,7 +91,45 @@ TEST(msg, serial_msg_stat_resp)
         auto res = unserializeMsg(rs);
         auto ptr = dynamic_cast<MsgStatResp*>(res.get());
         ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->error, msg.error);
         ASSERT_EQ(ptr->stat.size, msg.stat.size);
         ASSERT_EQ(ptr->stat.mode, msg.stat.mode);
+    }
+}
+
+TEST(msg, serial_msg_readdir)
+{
+    MsgReaddir msg(100, "./readdir");
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgReaddir*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->filename, msg.filename);
+    }
+}
+
+TEST(msg, serial_msg_readdir_resp)
+{
+    MsgReaddirResp msg(100, -2, {"file1", "file2", "dir1"});
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgReaddirResp*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->error, msg.error);
+        ASSERT_EQ(ptr->dir_names, msg.dir_names);
     }
 }

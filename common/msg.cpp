@@ -4,7 +4,9 @@ std::unordered_map<Msg::Type, std::unique_ptr<Msg> (*)(const SReader& rs)>
     unserializorLookup = {{Msg::Open, MsgOpen::unserialize},
                           {Msg::OpenResp, MsgOpenResp::unserialize},
                           {Msg::Stat, MsgStat::unserialize},
-                          {Msg::StatResp, MsgStatResp::unserialize}};
+                          {Msg::StatResp, MsgStatResp::unserialize},
+                          {Msg::Readdir, MsgReaddir::unserialize},
+                          {Msg::ReaddirResp, MsgReaddirResp::unserialize}};
 
 void serializeMsg(const Msg& msg, const SWriter& sr) { msg.serialize(sr); }
 
