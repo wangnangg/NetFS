@@ -10,6 +10,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include "fileop.hpp"
 #include "msg.hpp"
 
 #define BUFF_SIZE 4096
@@ -30,33 +31,61 @@ StorageServerConnection::~StorageServerConnection() {}
  */
 void StorageServerConnection::run()
 {
+    FileOp op;
+    auto unserial_reader = [&](char* buf, size_t size) {
+        int off = 0;
+        int left = (int)size;
+        while (left > 0)
+        {
+            int read_size = this->socket().receiveBytes(buf + off, left);
+            if (read_size == 0)
+            {
+                // client closed (for unknown reason)
+                throw Poco::Net::NetException(
+                    "client closed with out say bye-bye. rude");
+            }
+            assert(read_size <= left);
+            left -= read_size;
+            off += read_size;
+        }
+    };
+
+    auto serial_writer = [&](const char* buf, size_t size) {
+        int off = 0;
+        int left = (int)size;
+        while (left > 0)
+        {
+            int sent_size = this->socket().sendBytes(buf + off, left);
+            if (sent_size <= 0)
+            {
+                throw Poco::Net::NetException(
+                    "error happened while sending Msg to client");
+            }
+            assert(sent_size <= left);
+            left -= sent_size;
+            off += sent_size;
+        }
+    };
     try
     {
         while (true)
         {
-            auto msg = unserializeMsg([&](char* buf, size_t size) {
-                int off = 0;
-                int left = (int)size;
-                while (left > 0)
-                {
-                    int read_size =
-                        this->socket().receiveBytes(buf + off, left);
-                    if (read_size == 0)
-                    {
-                        // client closed (for unknown reason)
-                        throw Poco::Net::NetException(
-                            "client closed with out say bye-bye. rude");
-                    }
-                    assert(read_size <= left);
-                    left -= read_size;
-                    off += read_size;
-                }
-            });
+            auto msg = unserializeMsg(unserial_reader);
             switch (msg->type)
             {
                 case Msg::Open:
-                    std::cout << "MsgOpen" << std::endl;
+                {
+                    auto ptr = dynamic_cast<MsgOpen*>(msg.get());
+                    assert(ptr);
+                    std::cout << "MsgOpen(id: " << ptr->id
+                              << ", filename: " << ptr->filename
+                              << ", flag: " << ptr->flag << std::endl;
+                    MsgOpenResp resp;
+                    resp.id = ptr->id;
+                    resp.error = op.open(ptr->filename, ptr->flag);
+                    serializeMsg(resp, serial_writer);
                     break;
+                }
                 case Msg::Stat:
                     std::cout << "MsgClose" << std::endl;
                     break;

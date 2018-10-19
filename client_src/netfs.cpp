@@ -63,14 +63,11 @@ int NetFS::open(const std::string& filename, int flags)
     std::cout << "open" << std::endl;
     MsgOpen msg(id++, flags, filename);
     sendMsg(msg);
-    if (filename != "/hello")
-    {
-        return ENOENT;
-    }
-    if ((flags & O_ACCMODE) != O_RDONLY) return EACCES;
-    // auto resp = recvMsg();
-    // auto ptr = dynamic_cast<MsgOpenResp*>(reps.get());
-    return 0;
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgOpenResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    return ptr->error;
 }
 int NetFS::stat(const std::string& filename, struct stat& stbuf)
 {
