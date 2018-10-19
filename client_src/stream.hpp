@@ -151,4 +151,13 @@ public:
         assert(res == size);
         return res;
     }
+
+    void flush()
+    {
+        int res = fflush(_f);
+        if (res != 0)
+        {
+            throw std::system_error(errno, std::system_category());
+        }
+    }
 };

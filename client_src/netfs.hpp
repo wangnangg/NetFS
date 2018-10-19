@@ -2,16 +2,24 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <cstdint>
+#include <iostream>
 #include <string>
 #include <vector>
+#include "msg.hpp"
+#include "serial.hpp"
+#include "stream.hpp"
 
 /* all file operations return errno
  * all methods have no throw guarantee
  */
 class NetFS
 {
+    int id;
+    FdWriter writer;
+    FdReader reader;
+
 public:
-    NetFS(uint32_t ip, uint16_t port);
+    NetFS(const std::string& hostname, const std::string& port);
 
     int open(const std::string& filename, int flags);
     int stat(const std::string& filename, struct stat& statbuf);
@@ -26,4 +34,8 @@ public:
     // EOF
     int read(const std::string& filename, off_t offset, char* buf,
              size_t& size);
+
+private:
+    void sendMsg(const Msg& msg);
+    std::unique_ptr<Msg> recvMsg();
 };

@@ -72,19 +72,16 @@ public:
         OpenResp,
         Stat,
         StatResp,
-    };
-
-private:
-    Type _type;
+    } type;
 
 protected:
-    Msg(Type type) : _type(type) {}
+    Msg(Type type) : type(type) {}
     virtual void serializeBody(const SWriter& ws) const = 0;
 
 public:
     void serialize(const SWriter& sw) const
     {
-        serializePod<uint32_t>((uint32_t)_type, sw);
+        serializePod<uint32_t>((uint32_t)type, sw);
         serializeBody(sw);
     }
     virtual ~Msg() = default;

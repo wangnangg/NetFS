@@ -68,7 +68,8 @@ static void *hello_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 {
     (void)conn;
     cfg->kernel_cache = 0;
-    return NULL;
+    auto netfs = new NetFS(options.ipv4addr, options.port);
+    return netfs;
 }
 
 static int hello_getattr(const char *path, struct stat *stbuf,
@@ -156,15 +157,14 @@ int main(int argc, char *argv[])
        values are specified */
     options.filename = strdup("hello");
     options.contents = strdup("Hello World!\n");
-    options.ipv4addr = strdup("");
-    options.port = strdup("");
+    options.ipv4addr = strdup("127.0.0.1");
+    options.port = strdup("55555");
 
     /* Parse options */
     if (fuse_opt_parse(&args, &options, option_spec, NULL) == -1) return 1;
 
     uint32_t ip;
     uint16_t port;
-    std::unique_ptr<NetFS> netfs = nullptr;
     /* When --help is specified, first print our own file-system
        specific help text, then signal fuse_main to show
        additional help (by adding `--help` to the options again)
@@ -176,22 +176,8 @@ int main(int argc, char *argv[])
         assert(fuse_opt_add_arg(&args, "--help") == 0);
         args.argv[0] = (char *)"";
     }
-    else
-    {
-        try
-        {
-            ip = parseIpAddr(options.ipv4addr);
-            port = parsePort(options.port);
-        }
-        catch (std::exception &err)
-        {
-            std::cerr << err.what() << std::endl;
-            return EXIT_FAILURE;
-        }
-        netfs = std::make_unique<NetFS>(ip, port);
-    }
 
-    ret = fuse_main(args.argc, args.argv, &hello_oper, netfs.get());
+    ret = fuse_main(args.argc, args.argv, &hello_oper, NULL);
 
     // free fails when -h, don't know why
     // fuse_opt_free_args(&args);
