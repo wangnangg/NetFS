@@ -110,26 +110,19 @@ int NetFS::readdir(const std::string& filename, std::vector<Dirent>& dirs)
 int NetFS::read(const std::string& filename, off_t offset, char* buf,
                 size_t& size)
 {
-    std::cout << "read" << std::endl;
-    if (filename != "/hello")
+    MsgRead msg(id++, filename, offset, size);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgReadResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    if (ptr->error != 0)
     {
-        size = 0;
-        return ENOENT;
+        return ptr->error;
     }
-    std::cout << "offset size: " << offset << ", " << size << std::endl;
-    if (offset < 0 || (size_t)offset >= content.size())
-    {
-        size = 0;
-        return 0;
-    }
-    if (offset + size > content.size())
-    {
-        size = content.size() - offset;
-    }
-    auto start = content.begin() + offset;
-    auto end = start + size;
-    std::copy(start, end, buf);
-    std::cout << "copied: " << size << std::endl;
+    assert(ptr->data.size() <= size);
+    size = ptr->data.size();
+    std::copy(ptr->data.begin(), ptr->data.end(), buf);
     return 0;
 }
 

@@ -41,10 +41,23 @@ std::unique_ptr<Msg> respondReaddir(const Msg& msg, FileOp& op)
     return resp;
 }
 
+std::unique_ptr<Msg> respondRead(const Msg& msg, FileOp& op)
+{
+    auto ptr = dynamic_cast<const MsgRead*>(&msg);
+    assert(ptr);
+    std::cout << "MsgRead id: " << ptr->id << ", offset: " << ptr->offset
+              << ", size: " << ptr->size << std::endl;
+    auto resp = std::make_unique<MsgReadResp>();
+    resp->id = ptr->id;
+    resp->error = op.read(ptr->filename, ptr->offset, ptr->size, resp->data);
+    return resp;
+}
+
 std::unordered_map<Msg::Type,
                    std::unique_ptr<Msg> (*)(const Msg& msg, FileOp& op)>
     responder_map = {
         {Msg::Open, respondOpen},
         {Msg::Stat, respondStat},
         {Msg::Readdir, respondReaddir},
+        {Msg::Read, respondRead},
 };

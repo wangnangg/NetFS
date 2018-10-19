@@ -80,6 +80,10 @@ std::vector<T> unserializeVector(
     return vec;
 }
 
+// fast specialization for std::vector<char>
+void serializeVectorChar(const std::vector<char>& vec, const SWriter& sw);
+std::vector<char> unserializeVectorChar(const SReader& sr);
+
 class UnserializeFormatError : public std::runtime_error
 {
 public:

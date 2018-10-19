@@ -74,3 +74,18 @@ TEST(serial, vector)
         ASSERT_EQ(res, vec);
     }
 }
+
+TEST(serial, vector_char)
+{
+    std::vector<char> vec = {'a', 'b', 'c', 'd', 'e', 'f', 'g'};
+    const std::string tmpfile = "ece590-serial-vector";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeVectorChar(vec, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeVectorChar(rs);
+        ASSERT_EQ(res, vec);
+    }
+}

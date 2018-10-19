@@ -133,3 +133,42 @@ TEST(msg, serial_msg_readdir_resp)
         ASSERT_EQ(ptr->dir_names, msg.dir_names);
     }
 }
+
+TEST(msg, serial_msg_read)
+{
+    MsgRead msg(100, {"somefile"}, 10, 1000);
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgRead*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->filename, msg.filename);
+        ASSERT_EQ(ptr->offset, msg.offset);
+        ASSERT_EQ(ptr->size, msg.size);
+    }
+}
+
+TEST(msg, serial_msg_read_resp)
+{
+    MsgReadResp msg(1, 2, {'t', 'h', 'i', 's', ' ', 'd', 'a', 't', 'a'});
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgReadResp*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->error, msg.error);
+        ASSERT_EQ(ptr->data, msg.data);
+    }
+}

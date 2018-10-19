@@ -1,12 +1,16 @@
 #include "msg.hpp"
 
 std::unordered_map<Msg::Type, std::unique_ptr<Msg> (*)(const SReader& rs)>
-    unserializorLookup = {{Msg::Open, MsgOpen::unserialize},
-                          {Msg::OpenResp, MsgOpenResp::unserialize},
-                          {Msg::Stat, MsgStat::unserialize},
-                          {Msg::StatResp, MsgStatResp::unserialize},
-                          {Msg::Readdir, MsgReaddir::unserialize},
-                          {Msg::ReaddirResp, MsgReaddirResp::unserialize}};
+    unserializorLookup = {
+        {Msg::Open, MsgOpen::unserialize},
+        {Msg::OpenResp, MsgOpenResp::unserialize},
+        {Msg::Stat, MsgStat::unserialize},
+        {Msg::StatResp, MsgStatResp::unserialize},
+        {Msg::Readdir, MsgReaddir::unserialize},
+        {Msg::ReaddirResp, MsgReaddirResp::unserialize},
+        {Msg::Read, MsgRead::unserialize},
+        {Msg::ReadResp, MsgReadResp::unserialize},
+};
 
 void serializeMsg(const Msg& msg, const SWriter& sr) { msg.serialize(sr); }
 

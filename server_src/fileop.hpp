@@ -58,4 +58,28 @@ public:
         dirnames.push_back("hello");
         return 0;
     }
+
+    int read(const std::string& filename, off_t offset, size_t size,
+             std::vector<char>& res)
+    {
+        if (filename != hellopath)
+        {
+            res.resize(0);
+            return ENOENT;
+        }
+        if (offset < 0 || (size_t)offset >= content.size())
+        {
+            res.resize(0);
+            return 0;
+        }
+        if (offset + size > content.size())
+        {
+            size = content.size() - offset;
+        }
+        res.resize(size);
+        auto start = content.begin() + offset;
+        auto end = start + size;
+        std::copy(start, end, res.begin());
+        return 0;
+    }
 };
