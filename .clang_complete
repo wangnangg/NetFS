@@ -1,3 +1,5 @@
 -std=c++17
--Isrc
+-Iclient_src
 -Ifuse-3/include
+-Iserver_src
+-Icommon
