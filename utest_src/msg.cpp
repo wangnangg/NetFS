@@ -172,3 +172,41 @@ TEST(msg, serial_msg_read_resp)
         ASSERT_EQ(ptr->data, msg.data);
     }
 }
+
+TEST(msg, serial_msg_write)
+{
+    MsgWrite msg(1, "file1.cpp", 5, {'d', 'a', 't', 'a'});
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgWrite*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->filename, msg.filename);
+        ASSERT_EQ(ptr->offset, msg.offset);
+        ASSERT_EQ(ptr->data, msg.data);
+    }
+}
+
+TEST(msg, serial_msg_write_resp)
+{
+    MsgWriteResp msg(1, 5);
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgWriteResp*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->error, msg.error);
+    }
+}

@@ -10,6 +10,8 @@ std::unordered_map<Msg::Type, std::unique_ptr<Msg> (*)(const SReader& rs)>
         {Msg::ReaddirResp, MsgReaddirResp::unserialize},
         {Msg::Read, MsgRead::unserialize},
         {Msg::ReadResp, MsgReadResp::unserialize},
+        {Msg::Write, MsgWrite::unserialize},
+        {Msg::WriteResp, MsgWriteResp::unserialize},
 };
 
 void serializeMsg(const Msg& msg, const SWriter& sr) { msg.serialize(sr); }
