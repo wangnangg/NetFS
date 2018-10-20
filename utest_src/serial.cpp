@@ -1,15 +1,33 @@
 #include "serial.hpp"
 #include <fcntl.h>
 #include <gtest/gtest.h>
+#include <pwd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <string>
 #include "stream.hpp"
 
+static const char* getUserName()
+{
+    uid_t uid = geteuid();
+    struct passwd* pw = getpwuid(uid);
+    if (pw)
+    {
+        return pw->pw_name;
+    }
+
+    return "";
+}
+
+static std::string tmpFilename(const std::string& name)
+{
+    return (std::string("/tmp/") + getUserName() + "." + name).c_str();
+}
+
 static SReader tmpReader(const std::string& fname)
 {
-    int fd = open(("/tmp/" + fname).c_str(), O_RDONLY);
+    int fd = open(tmpFilename(fname).c_str(), O_RDONLY);
     auto fdrd = FdReader(fd);
     return [fdrd = std::move(fdrd)](char* buf, size_t size) mutable {
         fdrd.read(buf, size);
@@ -18,7 +36,7 @@ static SReader tmpReader(const std::string& fname)
 
 static SWriter tmpWriter(const std::string& fname)
 {
-    int fd = open(("/tmp/" + fname).c_str(), O_WRONLY | O_CREAT | O_TRUNC,
+    int fd = open(tmpFilename(fname).c_str(), O_WRONLY | O_CREAT | O_TRUNC,
                   S_IRWXU | S_IRWXG | S_IRWXO);
     auto wt = FdWriter(fd);
     return [wt = std::move(wt)](const char* buf, size_t size) mutable {

@@ -1,10 +1,28 @@
 #include "stream.hpp"
 #include <fcntl.h>
 #include <gtest/gtest.h>
+#include <pwd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <cassert>
+
+static const char* getUserName()
+{
+    uid_t uid = geteuid();
+    struct passwd* pw = getpwuid(uid);
+    if (pw)
+    {
+        return pw->pw_name;
+    }
+
+    return "";
+}
+
+static std::string tmpFilename(const std::string& name)
+{
+    return (std::string("/tmp/") + getUserName() + "." + name).c_str();
+}
 
 TEST(stream, read_smoke)
 {
@@ -33,7 +51,7 @@ TEST(stream, write_smoke)
 TEST(stream, read_write)
 {
     {
-        int fd = open("/tmp/ece590-utset-read-write", O_WRONLY | O_CREAT,
+        int fd = open(tmpFilename("stream").c_str(), O_WRONLY | O_CREAT,
                       S_IRWXU | S_IRWXG | S_IRWXO);
         ASSERT_GT(fd, 0);
         char buf[] = "0123456789";
@@ -42,7 +60,7 @@ TEST(stream, read_write)
         ASSERT_EQ(size, 10);
     }
     {
-        int fd = open("/tmp/ece590-utset-read-write", O_RDONLY);
+        int fd = open(tmpFilename("stream").c_str(), O_RDONLY);
         ASSERT_GT(fd, 0);
         char buf[10];
         auto rd = FdReader(fd);

@@ -1,9 +1,9 @@
 build:
   stage: build
-  before_script:
+  # before_script:
+  script: 
     - rm -rf build
     - python3 genmake.py
-  script: 
     - make all config=debug
     - make all config=release
 
