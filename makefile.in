@@ -1,5 +1,5 @@
-cpp_compiler?=clang
-linker?=clang
+cpp_compiler?=g++
+linker?=g++
 config?=debug
 build_dir:=build/${config}
 
@@ -18,18 +18,31 @@ utest_compile_flags:=${gtest_compile_flags} -Iserver_src -Iclient_src ${common_c
 utest_link_flags:= ${server_link_flags}
 
 ifeq ($(config), release)
+  common_compile_flags+= -g -O3
   client_compile_flags+= -g -O3
   client_link_flags+= -g -O3
   server_compile_flags+= -g -O3
   server_link_flags+= -g -O3
+  utest_link_flags+= -g -O3
 else
-	ifeq ($(config), debug)
-	  client_compile_flags+= -g
-	  client_link_flags+= -g
-	  server_compile_flags+= -g
-	  server_link_flags+= -g
-	else
-		$(error Unknown config: $(config))
-	endif
+   ifeq ($(config), coverage)
+      common_compile_flags+= -g -ftest-coverage -fprofile-arcs
+	  client_compile_flags+= -g -ftest-coverage -fprofile-arcs
+	  client_link_flags+= -g --coverage
+	  server_compile_flags+= -g -ftest-coverage -fprofile-arcs
+	  server_link_flags+= -g --coverage
+	  utest_link_flags+= -g --coverage
+    else
+	  ifeq ($(config), debug)
+        common_compile_flags+= -g
+		client_compile_flags+= -g
+		client_link_flags+= -g
+		server_compile_flags+= -g
+		server_link_flags+= -g
+        utest_link_flags+= -g
+	  else
+		  $(error Unknown config: $(config))
+	  endif
+  endif
 endif
 
