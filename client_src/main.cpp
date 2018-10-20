@@ -123,11 +123,11 @@ static int hello_read(const char *path, char *buf, size_t size, off_t offset,
 }
 
 static struct fuse_operations hello_oper = {
-    .getattr = hello_getattr,
-    .open = hello_open,
-    .read = hello_read,
-    .readdir = hello_readdir,
-    .init = hello_init,
+    getattr : hello_getattr,
+    open : hello_open,
+    read : hello_read,
+    readdir : hello_readdir,
+    init : hello_init,
 };
 
 static void show_help(const char *progname)
