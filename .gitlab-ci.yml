@@ -13,7 +13,7 @@ test:
     - ./utest.sh "*" debug
     - ./utest.sh "*" release
     - ./coverage.sh
-  coverage: '/^  lines\.\.\.\.\.\.: (\d+\.\d*)% (.+)/'
+  coverage: '/^  lines\.\.\.\.\.\.: (\d+\.\d*%)/'
   artifacts:
     paths:
       - covhtml/
