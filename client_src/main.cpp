@@ -122,13 +122,7 @@ static int hello_read(const char *path, char *buf, size_t size, off_t offset,
     return size;
 }
 
-static struct fuse_operations hello_oper = {
-    getattr : hello_getattr,
-    open : hello_open,
-    read : hello_read,
-    readdir : hello_readdir,
-    init : hello_init,
-};
+static struct fuse_operations hello_oper;
 
 static void show_help(const char *progname)
 {
@@ -148,6 +142,12 @@ static void show_help(const char *progname)
 
 int main(int argc, char *argv[])
 {
+    hello_oper.getattr = hello_getattr;
+    hello_oper.open = hello_open;
+    hello_oper.read = hello_read;
+    hello_oper.readdir = hello_readdir;
+    hello_oper.init = hello_init;
+
     int ret;
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 

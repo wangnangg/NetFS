@@ -7,7 +7,7 @@ rm covhtml -rf
 config=coverage
 filter=${1:-*}
 
-python genmake.py
+python3 genmake.py
 echo make build/${config}/utest config=${config}
 make build/${config}/utest config=${config}
 
