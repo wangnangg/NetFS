@@ -10,5 +10,5 @@ build:
 test:
   stage: test
   script:
-    - ./utest.sh "*" config=debug
-    - ./utest.sh "*" config=release
+    - ./utest.sh "*" debug
+    - ./utest.sh "*" release
