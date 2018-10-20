@@ -30,7 +30,6 @@
 #include <memory>
 #include <stdexcept>
 #include "fuse.h"
-#include "net.hpp"
 #include "netfs.hpp"
 
 /*
