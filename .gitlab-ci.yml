@@ -9,8 +9,8 @@ build:
   # instead of calling g++ directly you can also use some build toolkit like make
   # install the necessary build tools when needed
   before_script: 
-    - apt update && apt -y install make clang pkg-config meson ninja
-    - apt-get install libpoco-dev
+    - sudo apt update && sudo apt-get install make clang pkg-config meson ninja
+    - sudo apt-get install libpoco-dev
     - bash prepare.sh
   script: 
     - python3 genmake.py
