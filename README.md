@@ -8,6 +8,12 @@ Group Members: Connor Grehlinger (cmg88), Nan Wang (nw83),
 Jeff Lasser (jcl35), Noah Pritt (ncp14)
 
 
+![Build](https://gitlab.oit.duke.edu/cmg88/ece590-020-storage-project-group3/badges/master/build.svg)
+
+![Coverage](https://gitlab.oit.duke.edu/cmg88/ece590-020-storage-project-group3/badges/master/coverage.svg)
+
+[Coverage Report](https://cmg88.pages.oit.duke.edu/ece590-020-storage-project-group3)
+
 
 
 

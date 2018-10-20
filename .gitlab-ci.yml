@@ -12,3 +12,18 @@ test:
   script:
     - ./utest.sh "*" debug
     - ./utest.sh "*" release
+    - ./coverage.sh
+  coverage: '/^  lines\.\.\.\.\.\.: (\d+\.\d*)% (.+)/'
+  artifacts:
+    paths:
+      - covhtml/
+
+pages:
+  stage: deploy
+  dependencies:
+    - test
+  script:
+    - mv covhtml/ public/
+  artifacts:
+    paths:
+      - public
