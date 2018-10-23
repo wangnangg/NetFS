@@ -2,18 +2,6 @@
 #include <cassert>
 #include <iostream>
 
-std::unique_ptr<Msg> respondOpen(const Msg& msg, FileOp& op)
-{
-    auto ptr = dynamic_cast<const MsgOpen*>(&msg);
-    assert(ptr);
-    std::cout << "MsgOpen id: " << ptr->id << ", filename: " << ptr->filename
-              << ", flag: " << ptr->flag << std::endl;
-    auto resp = std::make_unique<MsgOpenResp>();
-    resp->id = ptr->id;
-    resp->error = op.open(ptr->filename, ptr->flag);
-    return resp;
-}
-
 std::unique_ptr<Msg> respondStat(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgStat*>(&msg);
@@ -49,15 +37,32 @@ std::unique_ptr<Msg> respondRead(const Msg& msg, FileOp& op)
               << ", size: " << ptr->size << std::endl;
     auto resp = std::make_unique<MsgReadResp>();
     resp->id = ptr->id;
-    resp->error = op.read(ptr->filename, ptr->offset, ptr->size, resp->data);
+    resp->data = std::vector<char>(ptr->size);
+    size_t read_size = 0;
+    resp->error = op.read(ptr->filename, ptr->offset, ptr->size,
+                          &resp->data[0], read_size);
+    resp->data.resize(read_size);
     return resp;
 }
 
+std::unique_ptr<Msg> respondWrite(const Msg& msg, FileOp& op)
+{
+    auto ptr = dynamic_cast<const MsgWrite*>(&msg);
+    assert(ptr);
+    std::cout << "MsgWrite id: " << ptr->id << ", offset: " << ptr->offset
+              << ", size: " << ptr->data.size() << std::endl;
+    auto resp = std::make_unique<MsgWriteResp>();
+    resp->id = ptr->id;
+    assert(ptr->data.size() > 0);
+    resp->error =
+        op.write(ptr->filename, ptr->offset, &ptr->data[0], ptr->data.size());
+    return resp;
+}
 std::unordered_map<Msg::Type,
                    std::unique_ptr<Msg> (*)(const Msg& msg, FileOp& op)>
     responder_map = {
-        {Msg::Open, respondOpen},
         {Msg::Stat, respondStat},
         {Msg::Readdir, respondReaddir},
         {Msg::Read, respondRead},
+        {Msg::Write, respondWrite},
 };

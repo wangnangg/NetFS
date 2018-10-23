@@ -24,16 +24,10 @@ public:
     int open(const std::string& filename, int flags);
     int stat(const std::string& filename, struct stat& statbuf);
 
-    struct Dirent
-    {
-        std::string name;
-    };
-    int readdir(const std::string& filename, std::vector<Dirent>& dirs);
+    int readdir(const std::string& filename, std::vector<std::string>& dirs);
 
-    // size is changed to reflect the actual size read, size of 0 indicates
-    // EOF
-    int read(const std::string& filename, off_t offset, char* buf,
-             size_t& size);
+    int read(const std::string& filename, off_t offset, size_t size,
+             char* buf, size_t& total_read);
 
 private:
     void sendMsg(const Msg& msg);

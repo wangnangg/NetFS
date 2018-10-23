@@ -32,7 +32,7 @@ StorageServerConnection::~StorageServerConnection() {}
  */
 void StorageServerConnection::run()
 {
-    FileOp op;
+    FileOp op("./nfs_root");
     auto unserial_reader = [&](char* buf, size_t size) {
         int off = 0;
         int left = (int)size;

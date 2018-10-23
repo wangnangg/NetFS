@@ -56,7 +56,6 @@ NetFS::NetFS(const std::string& hostname, const std::string& port)
     }
     reader = FdReader(rd);
 }
-const std::string content = "hello world!\n";
 
 int NetFS::open(const std::string& filename, int flags)
 {
@@ -68,6 +67,7 @@ int NetFS::open(const std::string& filename, int flags)
     assert(ptr->id == msg.id);
     return ptr->error;
 }
+
 int NetFS::stat(const std::string& filename, struct stat& stbuf)
 {
     MsgStat msg(id++, filename);
@@ -86,7 +86,8 @@ int NetFS::stat(const std::string& filename, struct stat& stbuf)
     return 0;
 }
 
-int NetFS::readdir(const std::string& filename, std::vector<Dirent>& dirs)
+int NetFS::readdir(const std::string& filename,
+                   std::vector<std::string>& dirs)
 {
     MsgReaddir msg(id++, filename);
     sendMsg(msg);
@@ -98,17 +99,14 @@ int NetFS::readdir(const std::string& filename, std::vector<Dirent>& dirs)
     {
         return ptr->error;
     }
-    for (auto n : ptr->dir_names)
-    {
-        dirs.push_back({n});
-    }
+    dirs = std::move(ptr->dir_names);
     return 0;
 }
 
 // size is changed to reflect the actual size read, size of 0 indicates
 // EOF
-int NetFS::read(const std::string& filename, off_t offset, char* buf,
-                size_t& size)
+int NetFS::read(const std::string& filename, off_t offset, size_t size,
+                char* buf, size_t& total_read)
 {
     MsgRead msg(id++, filename, offset, size);
     sendMsg(msg);
@@ -121,7 +119,7 @@ int NetFS::read(const std::string& filename, off_t offset, char* buf,
         return ptr->error;
     }
     assert(ptr->data.size() <= size);
-    size = ptr->data.size();
+    total_read = ptr->data.size();
     std::copy(ptr->data.begin(), ptr->data.end(), buf);
     return 0;
 }
