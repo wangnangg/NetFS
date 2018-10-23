@@ -31,4 +31,5 @@ public:
     int truncate(const std::string& fpath, off_t offset);
     int unlink(const std::string& filename);
     int rmdir(const std::string& filename);
+    int mkdir(const std::string& filename, mode_t mode);
 };

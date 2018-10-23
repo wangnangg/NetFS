@@ -160,3 +160,17 @@ int FileOp::rmdir(const std::string& fpath)
         return res;
     }
 }
+
+int FileOp::mkdir(const std::string& fpath, mode_t mode)
+{
+    auto filename = _root + fpath;
+    int res = ::mkdir(filename.c_str(), mode);
+    if (res < 0)
+    {
+        return errno;
+    }
+    else
+    {
+        return res;
+    }
+}

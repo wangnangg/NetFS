@@ -111,6 +111,18 @@ std::unique_ptr<Msg> respondRmdir(const Msg& msg, FileOp& op)
     return resp;
 }
 
+std::unique_ptr<Msg> respondMkdir(const Msg& msg, FileOp& op)
+{
+    auto ptr = dynamic_cast<const MsgMkdir*>(&msg);
+    assert(ptr);
+    std::cout << "MsgMkdir id: " << ptr->id << ", filename: " << ptr->filename
+              << std::endl;
+    auto resp = std::make_unique<MsgMkdirResp>();
+    resp->id = ptr->id;
+    resp->error = op.mkdir(ptr->filename, ptr->mode);
+    return resp;
+}
+
 std::unordered_map<Msg::Type,
                    std::unique_ptr<Msg> (*)(const Msg& msg, FileOp& op)>
     responder_map = {
@@ -118,4 +130,5 @@ std::unordered_map<Msg::Type,
         {Msg::Readdir, respondReaddir}, {Msg::Read, respondRead},
         {Msg::Write, respondWrite},     {Msg::Truncate, respondTruncate},
         {Msg::Unlink, respondUnlink},   {Msg::Rmdir, respondRmdir},
+        {Msg::Mkdir, respondMkdir},
 };

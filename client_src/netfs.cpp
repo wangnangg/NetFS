@@ -169,6 +169,17 @@ int NetFS::rmdir(const std::string& filename)
     return ptr->error;
 }
 
+int NetFS::mkdir(const std::string& filename, mode_t mode)
+{
+    MsgMkdir msg(id++, filename, mode);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgMkdirResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    return ptr->error;
+}
+
 void NetFS::sendMsg(const Msg& msg)
 {
     serializeMsg(msg, [&](const char* buf, size_t size) mutable {

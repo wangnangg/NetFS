@@ -338,3 +338,40 @@ TEST(msg, serial_msg_rmdir_resp)
         ASSERT_EQ(ptr->error, msg.error);
     }
 }
+
+TEST(msg, serial_msg_mkdir)
+{
+    MsgMkdir msg(1, "dir1", 2);
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgMkdir*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->filename, msg.filename);
+        ASSERT_EQ(ptr->mode, msg.mode);
+    }
+}
+
+TEST(msg, serial_msg_mkdir_resp)
+{
+    MsgMkdirResp msg(1, 123);
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgMkdirResp*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->error, msg.error);
+    }
+}

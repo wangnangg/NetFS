@@ -83,7 +83,9 @@ public:
         Unlink,
         UnlinkResp,
         Rmdir,
-        RmdirResp
+        RmdirResp,
+        Mkdir,
+        MkdirResp,
     } type;
 
 protected:

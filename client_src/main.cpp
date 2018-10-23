@@ -137,8 +137,9 @@ int nfs_open(const char *path, struct fuse_file_info *fi)
 int nfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
     (void)fi;
+    (void)mode;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
-    int err = fs->open(path, fi->flags, mode);
+    int err = fs->open(path, fi->flags, S_IRWXU | S_IRWXG | S_IRWXO);
     return -err;
 }
 
@@ -161,6 +162,14 @@ int nfs_rmdir(const char *path)
 {
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
     int err = fs->rmdir(path);
+    return -err;
+}
+
+int nfs_mkdir(const char *path, mode_t mode)
+{
+    (void)mode;
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int err = fs->mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO);
     return -err;
 }
 
@@ -190,6 +199,7 @@ int main(int argc, char *argv[])
     nfs_oper.truncate = nfs_truncate;
     nfs_oper.unlink = nfs_unlink;
     nfs_oper.rmdir = nfs_rmdir;
+    nfs_oper.mkdir = nfs_mkdir;
 
     int ret;
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
