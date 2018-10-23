@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <cassert>
+#include <iostream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -22,8 +23,8 @@ public:
     FileOp(std::string root) : _root(std::move(root)) {}
     int stat(const std::string& fpath, struct stat& stbuf)
     {
-        auto path = _root + fpath;
-        int res = ::stat(path.c_str(), &stbuf);
+        auto filename = _root + fpath;
+        int res = ::stat(filename.c_str(), &stbuf);
         if (res < 0)
         {
             return errno;
@@ -34,9 +35,9 @@ public:
         }
     }
 
-    int readdir(const std::string& filename,
-                std::vector<std::string>& dirnames)
+    int readdir(const std::string& fpath, std::vector<std::string>& dirnames)
     {
+        auto filename = _root + fpath;
         DIR* dirs = ::opendir(filename.c_str());
         if (dirs == NULL)
         {
@@ -50,9 +51,10 @@ public:
         return errno;
     }
 
-    int read(const std::string& filename, off_t offset, size_t size,
-             char* buf, size_t& total_read)
+    int read(const std::string& fpath, off_t offset, size_t size, char* buf,
+             size_t& total_read)
     {
+        auto filename = _root + fpath;
         int fd = ::open(filename.c_str(), O_RDONLY);
         total_read = 0;
         if (fd < 0)
@@ -88,9 +90,10 @@ public:
         }
     }
 
-    int write(const std::string& filename, off_t offset, const char* buf,
+    int write(const std::string& fpath, off_t offset, const char* buf,
               size_t size)
     {
+        auto filename = _root + fpath;
         int fd = ::open(filename.c_str(), O_WRONLY | O_CREAT,
                         S_IRWXU | S_IRWXG | S_IRWXO);
         if (fd < 0)
@@ -107,10 +110,14 @@ public:
         close(fd);
         if (written_size < 0)
         {
+            perror("write");
+            std::cerr << "write errno" << std::endl;
             return errno;
         }
         else if (written_size < (ssize_t)size)
         {
+            std::cerr << "write too small" << written_size << "v.s. " << size
+                      << std::endl;
             return EDQUOT;
         }
         else

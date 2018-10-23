@@ -83,16 +83,16 @@ static int nfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     (void)flags;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
 
-    std::vector<NetFS::Dirent> dirs;
-    int res = fs->readdir(path, dirs);
-    if (res != 0)
+    std::vector<std::string> dirs;
+    int err = fs->readdir(path, dirs);
+    if (err != 0)
     {
-        return -res;
+        return -err;
     }
 
     for (const auto &d : dirs)
     {
-        filler(buf, d.name.c_str(), NULL, 0, (fuse_fill_dir_flags)0);
+        filler(buf, d.c_str(), NULL, 0, (fuse_fill_dir_flags)0);
     }
     return 0;
 }
@@ -102,10 +102,11 @@ static int nfs_read(const char *path, char *buf, size_t size, off_t offset,
 {
     (void)fi;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
-    int res = fs->read(path, offset, buf, size);
-    if (res != 0)
+    size_t read_size;
+    int err = fs->read(path, offset, size, buf, read_size);
+    if (err != 0)
     {
-        return -res;
+        return -err;
     }
     return size;
 }
@@ -113,7 +114,17 @@ static int nfs_read(const char *path, char *buf, size_t size, off_t offset,
 static int nfs_write(const char *path, const char *buf, size_t size,
                      off_t offset, struct fuse_file_info *fi)
 {
+    (void)fi;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int err = fs->write(path, offset, buf, size);
+    if (err != 0)
+    {
+        return -err;
+    }
+    else
+    {
+        return size;
+    }
 }
 
 static struct fuse_operations nfs_oper;

@@ -4,6 +4,7 @@ root=..
 int_test=.
 make -C ${root}
 mkdir -p ${int_test}/tmp
+mkdir -p ${int_test}/nfs_root
 
 tmux \
   new-session  "${root}/build/debug/server" \; \

@@ -29,6 +29,9 @@ public:
     int read(const std::string& filename, off_t offset, size_t size,
              char* buf, size_t& total_read);
 
+    int write(const std::string& filename, off_t offset, const char* write,
+              size_t size);
+
 private:
     void sendMsg(const Msg& msg);
     std::unique_ptr<Msg> recvMsg();

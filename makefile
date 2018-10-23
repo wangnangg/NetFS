@@ -16,18 +16,13 @@ ${build_dir}/common/serial.o: common/serial.cpp | ${build_dir}/common
 
 -include ${build_dir}/common/serial.d 
 
-${build_dir}/client_src/cache.o: client_src/cache.cpp | ${build_dir}/client_src
-	${cpp_compiler} ${client_compile_flags} -MMD -MP -c client_src/cache.cpp -o ${build_dir}/client_src/cache.o
-
--include ${build_dir}/client_src/cache.d 
-
-${build_dir}/client_src:
-	mkdir -p ${build_dir}/client_src
-
 ${build_dir}/client_src/main.o: client_src/main.cpp | ${build_dir}/client_src
 	${cpp_compiler} ${client_compile_flags} -MMD -MP -c client_src/main.cpp -o ${build_dir}/client_src/main.o
 
 -include ${build_dir}/client_src/main.d 
+
+${build_dir}/client_src:
+	mkdir -p ${build_dir}/client_src
 
 ${build_dir}/client_src/netfs.o: client_src/netfs.cpp | ${build_dir}/client_src
 	${cpp_compiler} ${client_compile_flags} -MMD -MP -c client_src/netfs.cpp -o ${build_dir}/client_src/netfs.o
@@ -39,8 +34,8 @@ ${build_dir}/client_src/stream.o: client_src/stream.cpp | ${build_dir}/client_sr
 
 -include ${build_dir}/client_src/stream.d 
 
-${build_dir}/client: ${build_dir}/client_src/cache.o ${build_dir}/client_src/main.o ${build_dir}/client_src/netfs.o ${build_dir}/client_src/stream.o ${build_dir}/common/msg.o ${build_dir}/common/serial.o  | ${build_dir} 
-	${linker} ${build_dir}/client_src/cache.o ${build_dir}/client_src/main.o ${build_dir}/client_src/netfs.o ${build_dir}/client_src/stream.o ${build_dir}/common/msg.o ${build_dir}/common/serial.o  ${client_link_flags} -o ${build_dir}/client
+${build_dir}/client: ${build_dir}/client_src/main.o ${build_dir}/client_src/netfs.o ${build_dir}/client_src/stream.o ${build_dir}/common/msg.o ${build_dir}/common/serial.o  | ${build_dir} 
+	${linker} ${build_dir}/client_src/main.o ${build_dir}/client_src/netfs.o ${build_dir}/client_src/stream.o ${build_dir}/common/msg.o ${build_dir}/common/serial.o  ${client_link_flags} -o ${build_dir}/client
 
 ${build_dir}:
 	mkdir -p ${build_dir}
@@ -122,11 +117,11 @@ ${build_dir}/utest_src/serial.o: utest_src/serial.cpp | ${build_dir}/utest_src
 
 -include ${build_dir}/utest_src/serial.d 
 
-${build_dir}/utest: ${build_dir}/client_src/cache.o ${build_dir}/client_src/netfs.o ${build_dir}/client_src/stream.o ${build_dir}/common/msg.o ${build_dir}/common/serial.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/server_src/StorageInterface.o ${build_dir}/server_src/StorageServerConnection.o ${build_dir}/server_src/StorageServerConnectionFactory.o ${build_dir}/server_src/StorageServerParams.o ${build_dir}/server_src/fileop.o ${build_dir}/server_src/msg_response.o ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/msg.o ${build_dir}/utest_src/serial.o ${build_dir}/utest_src/stream.o  | ${build_dir} 
-	${linker} ${build_dir}/client_src/cache.o ${build_dir}/client_src/netfs.o ${build_dir}/client_src/stream.o ${build_dir}/common/msg.o ${build_dir}/common/serial.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/server_src/StorageInterface.o ${build_dir}/server_src/StorageServerConnection.o ${build_dir}/server_src/StorageServerConnectionFactory.o ${build_dir}/server_src/StorageServerParams.o ${build_dir}/server_src/fileop.o ${build_dir}/server_src/msg_response.o ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/msg.o ${build_dir}/utest_src/serial.o ${build_dir}/utest_src/stream.o  ${utest_link_flags} -o ${build_dir}/utest
+${build_dir}/utest: ${build_dir}/client_src/netfs.o ${build_dir}/client_src/stream.o ${build_dir}/common/msg.o ${build_dir}/common/serial.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/server_src/StorageInterface.o ${build_dir}/server_src/StorageServerConnection.o ${build_dir}/server_src/StorageServerConnectionFactory.o ${build_dir}/server_src/StorageServerParams.o ${build_dir}/server_src/fileop.o ${build_dir}/server_src/msg_response.o ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/msg.o ${build_dir}/utest_src/serial.o ${build_dir}/utest_src/stream.o  | ${build_dir} 
+	${linker} ${build_dir}/client_src/netfs.o ${build_dir}/client_src/stream.o ${build_dir}/common/msg.o ${build_dir}/common/serial.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/server_src/StorageInterface.o ${build_dir}/server_src/StorageServerConnection.o ${build_dir}/server_src/StorageServerConnectionFactory.o ${build_dir}/server_src/StorageServerParams.o ${build_dir}/server_src/fileop.o ${build_dir}/server_src/msg_response.o ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/msg.o ${build_dir}/utest_src/serial.o ${build_dir}/utest_src/stream.o  ${utest_link_flags} -o ${build_dir}/utest
 
 clean:
-	rm -f ${build_dir}/client ${build_dir}/client_src/cache.o ${build_dir}/client_src/main.o ${build_dir}/client_src/netfs.o ${build_dir}/client_src/stream.o ${build_dir}/common/msg.o ${build_dir}/common/serial.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/server ${build_dir}/server_src/StorageInterface.o ${build_dir}/server_src/StorageServer.o ${build_dir}/server_src/StorageServerConnection.o ${build_dir}/server_src/StorageServerConnectionFactory.o ${build_dir}/server_src/StorageServerParams.o ${build_dir}/server_src/fileop.o ${build_dir}/server_src/msg_response.o ${build_dir}/utest ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/msg.o ${build_dir}/utest_src/serial.o ${build_dir}/utest_src/stream.o 
-	rm -f ${build_dir}/client_src/cache.d ${build_dir}/client_src/main.d ${build_dir}/client_src/netfs.d ${build_dir}/client_src/stream.d ${build_dir}/common/msg.d ${build_dir}/common/serial.d ${build_dir}/googletest/googletest/src/gtest-all.d ${build_dir}/server_src/StorageInterface.d ${build_dir}/server_src/StorageServer.d ${build_dir}/server_src/StorageServerConnection.d ${build_dir}/server_src/StorageServerConnectionFactory.d ${build_dir}/server_src/StorageServerParams.d ${build_dir}/server_src/fileop.d ${build_dir}/server_src/msg_response.d ${build_dir}/utest_src/example.d ${build_dir}/utest_src/main.d ${build_dir}/utest_src/msg.d ${build_dir}/utest_src/serial.d ${build_dir}/utest_src/stream.d 
+	rm -f ${build_dir}/client ${build_dir}/client_src/main.o ${build_dir}/client_src/netfs.o ${build_dir}/client_src/stream.o ${build_dir}/common/msg.o ${build_dir}/common/serial.o ${build_dir}/googletest/googletest/src/gtest-all.o ${build_dir}/server ${build_dir}/server_src/StorageInterface.o ${build_dir}/server_src/StorageServer.o ${build_dir}/server_src/StorageServerConnection.o ${build_dir}/server_src/StorageServerConnectionFactory.o ${build_dir}/server_src/StorageServerParams.o ${build_dir}/server_src/fileop.o ${build_dir}/server_src/msg_response.o ${build_dir}/utest ${build_dir}/utest_src/example.o ${build_dir}/utest_src/main.o ${build_dir}/utest_src/msg.o ${build_dir}/utest_src/serial.o ${build_dir}/utest_src/stream.o 
+	rm -f ${build_dir}/client_src/main.d ${build_dir}/client_src/netfs.d ${build_dir}/client_src/stream.d ${build_dir}/common/msg.d ${build_dir}/common/serial.d ${build_dir}/googletest/googletest/src/gtest-all.d ${build_dir}/server_src/StorageInterface.d ${build_dir}/server_src/StorageServer.d ${build_dir}/server_src/StorageServerConnection.d ${build_dir}/server_src/StorageServerConnectionFactory.d ${build_dir}/server_src/StorageServerParams.d ${build_dir}/server_src/fileop.d ${build_dir}/server_src/msg_response.d ${build_dir}/utest_src/example.d ${build_dir}/utest_src/main.d ${build_dir}/utest_src/msg.d ${build_dir}/utest_src/serial.d ${build_dir}/utest_src/stream.d 
 .PHONY: clean
 

@@ -103,8 +103,6 @@ int NetFS::readdir(const std::string& filename,
     return 0;
 }
 
-// size is changed to reflect the actual size read, size of 0 indicates
-// EOF
 int NetFS::read(const std::string& filename, off_t offset, size_t size,
                 char* buf, size_t& total_read)
 {
@@ -122,6 +120,27 @@ int NetFS::read(const std::string& filename, off_t offset, size_t size,
     total_read = ptr->data.size();
     std::copy(ptr->data.begin(), ptr->data.end(), buf);
     return 0;
+}
+
+int NetFS::write(const std::string& filename, off_t offset, const char* buf,
+                 size_t size)
+{
+    std::vector<char> data;
+    data.resize(size);
+    std::copy(buf, buf + size, data.begin());
+    std::cerr << "writing: ";
+    for (auto c : data)
+    {
+        std::cerr << c;
+    }
+    std::cerr << std::endl;
+    MsgWrite msg(id++, filename, offset, std::move(data));
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgWriteResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    return ptr->error;
 }
 
 void NetFS::sendMsg(const Msg& msg)
