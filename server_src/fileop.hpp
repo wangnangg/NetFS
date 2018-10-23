@@ -67,7 +67,7 @@ public:
             close(fd);
             return errno;
         }
-        ssize_t read_size;
+        ssize_t read_size = 0;
         total_read = 0;
         while (total_read < size)
         {
