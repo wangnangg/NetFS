@@ -87,10 +87,35 @@ std::unique_ptr<Msg> respondTruncate(const Msg& msg, FileOp& op)
     return resp;
 }
 
+std::unique_ptr<Msg> respondUnlink(const Msg& msg, FileOp& op)
+{
+    auto ptr = dynamic_cast<const MsgUnlink*>(&msg);
+    assert(ptr);
+    std::cout << "MsgUnlink id: " << ptr->id
+              << ", filename: " << ptr->filename << std::endl;
+    auto resp = std::make_unique<MsgUnlinkResp>();
+    resp->id = ptr->id;
+    resp->error = op.unlink(ptr->filename);
+    return resp;
+}
+
+std::unique_ptr<Msg> respondRmdir(const Msg& msg, FileOp& op)
+{
+    auto ptr = dynamic_cast<const MsgRmdir*>(&msg);
+    assert(ptr);
+    std::cout << "MsgRmdir id: " << ptr->id << ", filename: " << ptr->filename
+              << std::endl;
+    auto resp = std::make_unique<MsgRmdirResp>();
+    resp->id = ptr->id;
+    resp->error = op.rmdir(ptr->filename);
+    return resp;
+}
+
 std::unordered_map<Msg::Type,
                    std::unique_ptr<Msg> (*)(const Msg& msg, FileOp& op)>
     responder_map = {
         {Msg::Open, respondOpen},       {Msg::Stat, respondStat},
         {Msg::Readdir, respondReaddir}, {Msg::Read, respondRead},
         {Msg::Write, respondWrite},     {Msg::Truncate, respondTruncate},
+        {Msg::Unlink, respondUnlink},   {Msg::Rmdir, respondRmdir},
 };

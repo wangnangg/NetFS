@@ -34,6 +34,9 @@ public:
 
     int truncate(const std::string& filename, off_t offset);
 
+    int unlink(const std::string& filename);
+    int rmdir(const std::string& filename);
+
 private:
     void sendMsg(const Msg& msg);
     std::unique_ptr<Msg> recvMsg();

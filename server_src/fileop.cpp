@@ -133,3 +133,30 @@ int FileOp::truncate(const std::string& fpath, off_t offset)
         return res;
     }
 }
+
+int FileOp::unlink(const std::string& fpath)
+{
+    auto filename = _root + fpath;
+    int res = ::unlink(filename.c_str());
+    if (res < 0)
+    {
+        return errno;
+    }
+    else
+    {
+        return res;
+    }
+}
+int FileOp::rmdir(const std::string& fpath)
+{
+    auto filename = _root + fpath;
+    int res = ::rmdir(filename.c_str());
+    if (res < 0)
+    {
+        return errno;
+    }
+    else
+    {
+        return res;
+    }
+}

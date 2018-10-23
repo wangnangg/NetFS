@@ -149,6 +149,21 @@ int nfs_truncate(const char *path, off_t offset, struct fuse_file_info *fi)
     int err = fs->truncate(path, offset);
     return -err;
 }
+
+int nfs_unlink(const char *path)
+{
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int err = fs->unlink(path);
+    return -err;
+}
+
+int nfs_rmdir(const char *path)
+{
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int err = fs->rmdir(path);
+    return -err;
+}
+
 static struct fuse_operations nfs_oper;
 
 static void show_help(const char *progname)
@@ -173,6 +188,8 @@ int main(int argc, char *argv[])
     nfs_oper.create = nfs_create;
     nfs_oper.open = nfs_open;
     nfs_oper.truncate = nfs_truncate;
+    nfs_oper.unlink = nfs_unlink;
+    nfs_oper.rmdir = nfs_rmdir;
 
     int ret;
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);

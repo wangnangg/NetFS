@@ -29,4 +29,6 @@ public:
     int write(const std::string& fpath, off_t offset, const char* buf,
               size_t size);
     int truncate(const std::string& fpath, off_t offset);
+    int unlink(const std::string& filename);
+    int rmdir(const std::string& filename);
 };

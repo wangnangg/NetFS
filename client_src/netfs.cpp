@@ -148,6 +148,27 @@ int NetFS::truncate(const std::string& filename, off_t offset)
     return ptr->error;
 }
 
+int NetFS::unlink(const std::string& filename)
+{
+    MsgUnlink msg(id++, filename);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgUnlinkResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    return ptr->error;
+}
+int NetFS::rmdir(const std::string& filename)
+{
+    MsgRmdir msg(id++, filename);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgRmdirResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    return ptr->error;
+}
+
 void NetFS::sendMsg(const Msg& msg)
 {
     serializeMsg(msg, [&](const char* buf, size_t size) mutable {
