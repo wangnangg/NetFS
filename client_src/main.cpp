@@ -127,6 +127,28 @@ static int nfs_write(const char *path, const char *buf, size_t size,
     }
 }
 
+int nfs_open(const char *path, struct fuse_file_info *fi)
+{
+    (void)fi;
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int err = fs->open(path, fi->flags, 0);
+    return -err;
+}
+int nfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
+{
+    (void)fi;
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int err = fs->open(path, fi->flags, mode);
+    return -err;
+}
+
+int nfs_truncate(const char *path, off_t offset, struct fuse_file_info *fi)
+{
+    (void)fi;
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int err = fs->truncate(path, offset);
+    return -err;
+}
 static struct fuse_operations nfs_oper;
 
 static void show_help(const char *progname)
@@ -148,6 +170,9 @@ int main(int argc, char *argv[])
     nfs_oper.write = nfs_write;
     nfs_oper.readdir = nfs_readdir;
     nfs_oper.init = nfs_init;
+    nfs_oper.create = nfs_create;
+    nfs_oper.open = nfs_open;
+    nfs_oper.truncate = nfs_truncate;
 
     int ret;
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);

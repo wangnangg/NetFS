@@ -57,9 +57,9 @@ NetFS::NetFS(const std::string& hostname, const std::string& port)
     reader = FdReader(rd);
 }
 
-int NetFS::open(const std::string& filename, int flags)
+int NetFS::open(const std::string& filename, int flags, mode_t mode)
 {
-    MsgOpen msg(id++, flags, filename);
+    MsgOpen msg(id++, flags, filename, mode);
     sendMsg(msg);
     auto resp = recvMsg();
     auto ptr = dynamic_cast<MsgOpenResp*>(resp.get());
@@ -128,16 +128,21 @@ int NetFS::write(const std::string& filename, off_t offset, const char* buf,
     std::vector<char> data;
     data.resize(size);
     std::copy(buf, buf + size, data.begin());
-    std::cerr << "writing: ";
-    for (auto c : data)
-    {
-        std::cerr << c;
-    }
-    std::cerr << std::endl;
     MsgWrite msg(id++, filename, offset, std::move(data));
     sendMsg(msg);
     auto resp = recvMsg();
     auto ptr = dynamic_cast<MsgWriteResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    return ptr->error;
+}
+
+int NetFS::truncate(const std::string& filename, off_t offset)
+{
+    MsgTruncate msg(id++, filename, offset);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgTruncateResp*>(resp.get());
     assert(ptr);
     assert(ptr->id == msg.id);
     return ptr->error;

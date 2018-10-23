@@ -21,7 +21,7 @@ class NetFS
 public:
     NetFS(const std::string& hostname, const std::string& port);
 
-    int open(const std::string& filename, int flags);
+    int open(const std::string& filename, int flags, mode_t mode);
     int stat(const std::string& filename, struct stat& statbuf);
 
     int readdir(const std::string& filename, std::vector<std::string>& dirs);
@@ -29,8 +29,10 @@ public:
     int read(const std::string& filename, off_t offset, size_t size,
              char* buf, size_t& total_read);
 
-    int write(const std::string& filename, off_t offset, const char* write,
+    int write(const std::string& filename, off_t offset, const char* buf,
               size_t size);
+
+    int truncate(const std::string& filename, off_t offset);
 
 private:
     void sendMsg(const Msg& msg);
