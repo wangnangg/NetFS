@@ -2,15 +2,15 @@
 #include <cassert>
 #include <vector>
 
+struct Range
+{
+    size_t start;
+    size_t end;
+};
+
 class RangeList
 {
 public:
-    struct Range
-    {
-        size_t start;
-        size_t end;
-    };
-
 private:
     std::vector<Range> _ranges;
 
@@ -26,8 +26,14 @@ public:
     // insert a range in a sorted, not overlapped sequence of ranges. Possibly
     // merge with other ranges
     void insertRange(size_t start, size_t end);
-    const std::vector<Range>& ranges() const { return _ranges; }
+    auto begin() const { return _ranges.begin(); }
+    auto begin() { return _ranges.begin(); }
+    auto end() const { return _ranges.end(); }
+    auto end() { return _ranges.end(); }
+    size_t count() const { return _ranges.size(); }
 };
 
-void overlay(const char* upper_layer, size_t size, const RangeList& ranges,
+void overlay(const char* upper_layer, Range range, char* lower_layer);
+
+void overlay(const char* upper_layer, const RangeList& ranges,
              char* lower_layer);

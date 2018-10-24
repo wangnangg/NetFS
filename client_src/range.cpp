@@ -65,3 +65,19 @@ void RangeList::insertRange(size_t start, size_t end)
         _ranges.insert(iter, Range{new_start, new_end});
     }
 }
+
+void overlay(const char* upper_layer, Range range, char* lower_layer)
+{
+    for (size_t i = range.start; i < range.end; i++)
+    {
+        lower_layer[i] = upper_layer[i];
+    }
+}
+void overlay(const char* upper_layer, const RangeList& ranges,
+             char* lower_layer)
+{
+    for (auto r : ranges)
+    {
+        overlay(upper_layer, r, lower_layer);
+    }
+}

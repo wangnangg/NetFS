@@ -6,127 +6,117 @@
 #include <vector>
 #include "range.hpp"
 
-class Cache
+struct RecentUsedRecord
 {
-public:
-    using BlockID = uint64_t;
+    std::string filename;
+    size_t block_num;
+};
 
-private:
+struct CacheEntry
+{
     enum State
     {
         Clean,
         Dirty
     };
-    struct Entry
+    State state;
+    std::vector<char> data;
+    RangeList valid_ranges;
+    std::list<RecentUsedRecord>::iterator use_record;
+    CacheEntry(State state, std::vector<char> data, RangeList ranges,
+               std::list<RecentUsedRecord>::iterator use_record)
+        : state(state),
+          data(std::move(data)),
+          valid_ranges(std::move(ranges)),
+          use_record(use_record)
     {
-        State state;
-        std::vector<char> data;
-        RangeList valid_ranges;
-        Entry(State state, std::vector<char> data, RangeList ranges)
-            : state(state),
-              data(std::move(data)),
-              valid_ranges(std::move(ranges))
-        {
-        }
-        Entry(const Entry&) = delete;
-        Entry& operator=(const Entry&) = delete;
-    };
+    }
+};
 
+struct FileAttr
+{
+    size_t size;
+};
+
+struct FileCache
+{
+    enum State
+    {
+        Clean,
+        Dirty
+    };
+    State state;
+    FileAttr attr;
+    std::unordered_map<size_t, CacheEntry> entries;
+    FileCache(State state, FileAttr attr) : state(state), attr(attr) {}
+};
+
+class Cache
+{
+public:
+    using BlockID = uint64_t;
+    using WriteBackContentFunc =
+        std::function<int(const std::string& fname, size_t offset,
+                          const char* data, size_t size)>;
+    using WriteBackFileAttrFunc =
+        std::function<int(const std::string& fname, FileAttr attr)>;
+    using FetchContentFunc =
+        std::function<int(const std::string& filename, size_t offset,
+                          char* data, size_t size, size_t& read_size)>;
+    using FetchFileAttrFunc =
+        std::function<int(const std::string& filename, FileAttr& attr)>;
+
+private:
     // cache look up map
-    std::unordered_map<BlockID, std::list<Entry>::iterator> _cache_map;
+    std::unordered_map<std::string, FileCache> _file_map;
 
     // sorted by recent used date, hot entry is near head and cold is near
     // tail.
-    std::list<Entry> _entry_list;
+    std::list<RecentUsedRecord> _recent_list;
     size_t _block_size;
-
-private:
-    std::list<Entry>::iterator new_head_entry(const BlockID& bid, State state,
-                                              std::vector<char> data,
-                                              RangeList ranges)
-    {
-        std::list<Entry>::iterator itor = _entry_list.emplace(
-            _entry_list.begin(), state, std::move(data), std::move(ranges));
-        assert(_cache_map.find(bid) == _cache_map.end());
-        _cache_map[bid] = itor;
-        return itor;
-    }
+    WriteBackContentFunc content_wb;
+    WriteBackFileAttrFunc attr_wb;
+    FetchContentFunc content_ft;
+    FetchFileAttrFunc attr_ft;
 
 public:
-    Cache(size_t block_size) : _block_size(block_size) {}
-
-    // determine if a block is fully in cache
-    bool blockInCache(const BlockID& bid)
+    Cache(size_t block_size, WriteBackContentFunc content_wb,
+          WriteBackFileAttrFunc attr_wb, FetchContentFunc content_ft,
+          FetchFileAttrFunc attr_ft)
+        : _block_size(block_size),
+          content_wb(content_wb),
+          attr_wb(attr_wb),
+          content_ft(content_ft),
+          attr_ft(attr_ft)
     {
-        if (_cache_map.find(bid) == _cache_map.end())
-        {
-            return false;
-        }
-        auto eptr = _cache_map.at(bid);
-        if (eptr->valid_ranges.ranges().size() != 1)
-        {
-            return false;
-        }
-        auto rg = eptr->valid_ranges.ranges().front();
-        if (rg.start == 0 && rg.end == _block_size)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
     }
 
-    void putBlock(const BlockID& bid, std::vector<char> block)
-    {
-        assert(!blockInCache(bid));
-        assert(block.size() == _block_size);
-        if (_cache_map.find(bid) == _cache_map.end())
-        {
-            new_head_entry(bid, Clean, std::move(block),
-                           RangeList(0, _block_size));
-        }
-        else
-        {
-            auto eptr = _cache_map.at(bid);
-            overlay(&eptr->data[0], _block_size, eptr->valid_ranges,
-                    &block[0]);
-            std::swap(eptr->data, block);
-            eptr->valid_ranges = RangeList(0, _block_size);
-        }
-    }
+    int write(const std::string& filename, size_t offset, const char* buf,
+              size_t size);
 
-    /* get a block from cache, if the block is not cached, then nullptr is
-     * returned.
-     */
-    const std::vector<char>& getBlock(const BlockID& bid)
-    {
-        assert(blockInCache(bid));
-        return _cache_map.at(bid)->data;
-    }
+    int read(const std::string& filename, off_t offset, char* buf,
+             size_t size, size_t& read_size);
 
-    /* write data in a block, then block doesn't need to be presented in the
-     * cache. Written data will exist in ranges. If they form a full block,
-     * then the block becomes available for read, otherwise, it cannot be
-     * read.
-     */
-    void writeToBlock(const BlockID& bid, size_t offset, size_t size,
-                      const char* buf)
-    {
-        assert(offset + size <= _block_size);
-        if (_cache_map.find(bid) == _cache_map.end())
-        {
-            std::vector<char> data(_block_size);
-            std::copy(buf, buf + size, &data[offset]);
-            new_head_entry(bid, Dirty, std::move(data),
-                           RangeList(offset, offset + size));
-        }
-        else
-        {
-            auto eptr = _cache_map.at(bid);
-            std::copy(buf, buf + size, &eptr->data[offset]);
-            eptr->valid_ranges.insertRange(offset, offset + size);
-        }
-    }
+    int writeFileAttr(const std::string& filename, FileAttr attr);
+    int readFileAttr(const std::string& filename, FileAttr& attr);
+
+    void invalidateFile(const std::string& filename);
+
+    size_t countCachedBlocks() const;
+    int evictBlocks(size_t count, size_t& eviced_count) const;
+    int evictFile(const std::string& filename) const;
+
+private:
+    size_t blockNum(size_t offset) { return offset / _block_size; }
+
+    size_t blockOffset(size_t offset) { return offset % _block_size; }
+
+    int cacheFileAttr(const std::string& filename);
+
+    void writeToBlock(const std::string& filename, size_t block_num,
+                      size_t offset, const char* buf, size_t size);
+    void newCacheEntry(const std::string& filename, size_t block_num,
+                       size_t offset, std::vector<char> block,
+                       CacheEntry::State state,
+                       std::list<RecentUsedRecord>::iterator pos);
 };
