@@ -12,6 +12,8 @@ test:
   script:
     - ./utest.sh "*" debug
     - ./utest.sh "*" release
+    - ./valgrind.sh "*" debug 
+    - ./valgrind.sh "*" release
     - ./coverage.sh
   coverage: '/^  lines\.\.\.\.\.\.: (\d+\.\d*%)/'
   artifacts:
