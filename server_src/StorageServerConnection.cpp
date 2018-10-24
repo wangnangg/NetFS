@@ -32,50 +32,57 @@ StorageServerConnection::~StorageServerConnection() {}
  */
 void StorageServerConnection::run()
 {
-    FileOp op("./nfs_root");
-    auto unserial_reader = [&](char* buf, size_t size) {
-        int off = 0;
-        int left = (int)size;
-        while (left > 0)
-        {
-            int read_size = this->socket().receiveBytes(buf + off, left);
-            if (read_size == 0)
-            {
-                // client closed (for unknown reason)
-                throw std::runtime_error(
-                    "client closed with out say bye-bye. rude");
-            }
-            assert(read_size <= left);
-            left -= read_size;
-            off += read_size;
-        }
-    };
-
-    auto serial_writer = [&](const char* buf, size_t size) {
-        int off = 0;
-        int left = (int)size;
-        while (left > 0)
-        {
-            int sent_size = this->socket().sendBytes(buf + off, left);
-            if (sent_size <= 0)
-            {
-                throw std::runtime_error(
-                    "error happened while sending Msg to client");
-            }
-            assert(sent_size <= left);
-            left -= sent_size;
-            off += sent_size;
-        }
-    };
-    while (true)
+    try
     {
-        auto msg = unserializeMsg(unserial_reader);
-        auto responder = responder_map.at(msg->type);
-        auto resp_msg = responder(*msg, op);
-        if (resp_msg)
+        FileOp op("./nfs_root");
+        auto unserial_reader = [&](char* buf, size_t size) {
+            int off = 0;
+            int left = (int)size;
+            while (left > 0)
+            {
+                int read_size = this->socket().receiveBytes(buf + off, left);
+                if (read_size == 0)
+                {
+                    // client closed (for unknown reason)
+                    throw std::runtime_error(
+                        "client closed with out say bye-bye. rude");
+                }
+                assert(read_size <= left);
+                left -= read_size;
+                off += read_size;
+            }
+        };
+
+        auto serial_writer = [&](const char* buf, size_t size) {
+            int off = 0;
+            int left = (int)size;
+            while (left > 0)
+            {
+                int sent_size = this->socket().sendBytes(buf + off, left);
+                if (sent_size <= 0)
+                {
+                    throw std::runtime_error(
+                        "error happened while sending Msg to client");
+                }
+                assert(sent_size <= left);
+                left -= sent_size;
+                off += sent_size;
+            }
+        };
+        while (true)
         {
-            serializeMsg(*resp_msg, serial_writer);
+            auto msg = unserializeMsg(unserial_reader);
+            auto responder = responder_map.at(msg->type);
+            auto resp_msg = responder(*msg, op);
+            if (resp_msg)
+            {
+                serializeMsg(*resp_msg, serial_writer);
+            }
         }
+    }
+    catch (std::exception& e)
+    {
+        std::cout << e.what() << std::endl;
     }
 }
 
