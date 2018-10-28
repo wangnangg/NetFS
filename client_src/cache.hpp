@@ -6,7 +6,7 @@
 #include <vector>
 #include "range.hpp"
 
-struct RecentUsedRecord
+struct CacheEntryID
 {
     std::string filename;
     size_t block_num;
@@ -22,9 +22,9 @@ struct CacheEntry
     State state;
     std::vector<char> data;
     RangeList valid_ranges;
-    std::list<RecentUsedRecord>::iterator use_record;
+    std::list<CacheEntryID>::iterator use_record;
     CacheEntry(State state, std::vector<char> data, RangeList ranges,
-               std::list<RecentUsedRecord>::iterator use_record)
+               std::list<CacheEntryID>::iterator use_record)
         : state(state),
           data(std::move(data)),
           valid_ranges(std::move(ranges)),
@@ -36,6 +36,7 @@ struct CacheEntry
 struct FileAttr
 {
     size_t size;
+    mode_t mode;
 };
 
 struct FileCache
@@ -48,13 +49,12 @@ struct FileCache
     State state;
     FileAttr attr;
     std::unordered_map<size_t, CacheEntry> entries;
-    FileCache(State state, FileAttr attr) : state(state), attr(attr) {}
+    FileCache(FileAttr attr) : state(Clean), attr(attr) {}
 };
 
 class Cache
 {
 public:
-    using BlockID = uint64_t;
     using WriteBackContentFunc =
         std::function<int(const std::string& fname, size_t offset,
                           const char* data, size_t size)>;
@@ -72,22 +72,22 @@ private:
 
     // sorted by recent used date, hot entry is near head and cold is near
     // tail.
-    std::list<RecentUsedRecord> _recent_list;
+    std::list<CacheEntryID> _recent_list;
     size_t _block_size;
-    WriteBackContentFunc content_wb;
-    WriteBackFileAttrFunc attr_wb;
-    FetchContentFunc content_ft;
-    FetchFileAttrFunc attr_ft;
+    WriteBackContentFunc _content_wb;
+    WriteBackFileAttrFunc _attr_wb;
+    FetchContentFunc _content_ft;
+    FetchFileAttrFunc _attr_ft;
 
 public:
     Cache(size_t block_size, WriteBackContentFunc content_wb,
           WriteBackFileAttrFunc attr_wb, FetchContentFunc content_ft,
           FetchFileAttrFunc attr_ft)
         : _block_size(block_size),
-          content_wb(content_wb),
-          attr_wb(attr_wb),
-          content_ft(content_ft),
-          attr_ft(attr_ft)
+          _content_wb(content_wb),
+          _attr_wb(attr_wb),
+          _content_ft(content_ft),
+          _attr_ft(attr_ft)
     {
     }
 
@@ -97,14 +97,15 @@ public:
     int read(const std::string& filename, off_t offset, char* buf,
              size_t size, size_t& read_size);
 
-    int writeFileAttr(const std::string& filename, FileAttr attr);
-    int readFileAttr(const std::string& filename, FileAttr& attr);
+    int truncate(const std::string& filename, size_t fsize);
+    int stat(const std::string& filename, FileAttr& attr);
 
-    void invalidateFile(const std::string& filename);
+    int flush(const std::string& filename);
 
-    size_t countCachedBlocks() const;
-    int evictBlocks(size_t count, size_t& eviced_count) const;
-    int evictFile(const std::string& filename) const;
+    void invalidate(const std::string& filename);
+
+    size_t countCachedBlocks() const { return _recent_list.size(); }
+    int evictBlocks(size_t count, size_t& eviced_count);
 
 private:
     size_t blockNum(size_t offset) { return offset / _block_size; }
@@ -112,11 +113,21 @@ private:
     size_t blockOffset(size_t offset) { return offset % _block_size; }
 
     int cacheFileAttr(const std::string& filename);
+    int cacheBlocks(const std::string& filename, size_t block_start,
+                    size_t block_end);
 
-    void writeToBlock(const std::string& filename, size_t block_num,
-                      size_t offset, const char* buf, size_t size);
-    void newCacheEntry(const std::string& filename, size_t block_num,
-                       size_t offset, std::vector<char> block,
-                       CacheEntry::State state,
-                       std::list<RecentUsedRecord>::iterator pos);
+    void writeBlock(const std::string& filename, size_t block_num,
+                    size_t offset, const char* buf, size_t size);
+
+    void readBlock(const std::string& filename, size_t block_num,
+                   size_t offset, char* buf, size_t size);
+
+    void newEntry(const std::string& filename, size_t block_num,
+                  std::vector<char> block, RangeList ranges,
+                  CacheEntry::State state,
+                  std::list<CacheEntryID>::iterator pos);
+    void deleteEntry(const std::string& filename, size_t block_num);
+    void deleteEntryBeyond(const std::string& filename, size_t block_bound);
+
+    void moveToHead(std::list<CacheEntryID>::const_iterator rec_pos);
 };

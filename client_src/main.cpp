@@ -62,7 +62,7 @@ static void *nfs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 {
     (void)conn;
     cfg->kernel_cache = 0;
-    auto netfs = new NetFS(options.ipv4addr, options.port);
+    auto netfs = new NetFS(options.ipv4addr, options.port, 1 << 12);
     return netfs;
 }
 

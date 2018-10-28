@@ -54,7 +54,7 @@ private:
 
     int do_write(const std::string& filename, off_t offset, const char* buf,
                  size_t size);
-    int do_read(const std::string& filename, off_t offset, const char* buf,
+    int do_read(const std::string& filename, off_t offset, char* buf,
                 size_t size, size_t& read_size);
     int do_read_attr(const std::string& filename, FileAttr& attr);
     int do_write_attr(const std::string& filename, FileAttr attr);
