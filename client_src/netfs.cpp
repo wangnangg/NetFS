@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <cassert>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <system_error>
@@ -43,9 +44,19 @@ int connect(const std::string& hostname, const std::string& port)
     freeaddrinfo(host_info_list);
     return socket_fd;
 }
+using namespace std::placeholders;
+NetFS::NetFS(const std::string& hostname, const std::string& port,
+             size_t block_size)
+    : msg_id(0),
+      writer(),
+      reader(),
+      block_size(block_size),
+      cache(block_size, std::bind(&NetFS::do_write, this, _1, _2, _3, _4),
+            std::bind(&NetFS::do_write_attr, this, _1, _2),
+            std::bind(&NetFS::do_read, this, _1, _2, _3, _4, _5),
+            std::bind(&NetFS::do_read_attr, this, _1, _2)
 
-NetFS::NetFS(const std::string& hostname, const std::string& port)
-    : id(0), writer(), reader()
+      )
 {
     int wt = connect(hostname, port);
     writer = FdWriter(wt);
@@ -59,7 +70,7 @@ NetFS::NetFS(const std::string& hostname, const std::string& port)
 
 int NetFS::open(const std::string& filename, int flags, mode_t mode)
 {
-    MsgOpen msg(id++, flags, filename, mode);
+    MsgOpen msg(msg_id++, flags, filename, mode);
     sendMsg(msg);
     auto resp = recvMsg();
     auto ptr = dynamic_cast<MsgOpenResp*>(resp.get());
@@ -70,26 +81,22 @@ int NetFS::open(const std::string& filename, int flags, mode_t mode)
 
 int NetFS::stat(const std::string& filename, struct stat& stbuf)
 {
-    MsgStat msg(id++, filename);
-    sendMsg(msg);
-    auto resp = recvMsg();
-    auto ptr = dynamic_cast<MsgStatResp*>(resp.get());
-    assert(ptr);
-    assert(ptr->id == msg.id);
-    if (ptr->error != 0)
+    FileAttr attr;
+    int err = cache.stat(filename, attr);
+    if (err)
     {
-        return ptr->error;
+        return err;
     }
     memset(&stbuf, 0, sizeof(struct stat));
-    stbuf.st_size = ptr->stat.size;
-    stbuf.st_mode = ptr->stat.mode;
+    stbuf.st_size = attr.size;
+    stbuf.st_mode = attr.mode;
     return 0;
 }
 
 int NetFS::readdir(const std::string& filename,
                    std::vector<std::string>& dirs)
 {
-    MsgReaddir msg(id++, filename);
+    MsgReaddir msg(msg_id++, filename);
     sendMsg(msg);
     auto resp = recvMsg();
     auto ptr = dynamic_cast<MsgReaddirResp*>(resp.get());
@@ -106,61 +113,50 @@ int NetFS::readdir(const std::string& filename,
 int NetFS::read(const std::string& filename, off_t offset, size_t size,
                 char* buf, size_t& total_read)
 {
-    MsgRead msg(id++, filename, offset, size);
-    sendMsg(msg);
-    auto resp = recvMsg();
-    auto ptr = dynamic_cast<MsgReadResp*>(resp.get());
-    assert(ptr);
-    assert(ptr->id == msg.id);
-    if (ptr->error != 0)
-    {
-        return ptr->error;
-    }
-    assert(ptr->data.size() <= size);
-    total_read = ptr->data.size();
-    std::copy(ptr->data.begin(), ptr->data.end(), buf);
-    return 0;
+#ifndef NDEBUG
+    std::cout << "NetFS::read(in) filename: " << filename
+              << ", offset: " << offset << ", size: " << size << std::endl;
+#endif
+    int err = cache.read(filename, offset, buf, size, total_read);
+
+#ifndef NDEBUG
+    std::cout << "NetFS::read(out) total_read: " << total_read
+              << ", err: " << err << std::endl;
+#endif
+    return err;
 }
 
 int NetFS::write(const std::string& filename, off_t offset, const char* buf,
                  size_t size)
 {
-    std::vector<char> data;
-    data.resize(size);
-    std::copy(buf, buf + size, data.begin());
-    MsgWrite msg(id++, filename, offset, std::move(data));
-    sendMsg(msg);
-    auto resp = recvMsg();
-    auto ptr = dynamic_cast<MsgWriteResp*>(resp.get());
-    assert(ptr);
-    assert(ptr->id == msg.id);
-    return ptr->error;
+    int err = cache.write(filename, offset, buf, size);
+    return err;
 }
 
 int NetFS::truncate(const std::string& filename, off_t offset)
 {
-    MsgTruncate msg(id++, filename, offset);
-    sendMsg(msg);
-    auto resp = recvMsg();
-    auto ptr = dynamic_cast<MsgTruncateResp*>(resp.get());
-    assert(ptr);
-    assert(ptr->id == msg.id);
-    return ptr->error;
+    int err = cache.truncate(filename, offset);
+    return err;
 }
 
 int NetFS::unlink(const std::string& filename)
 {
-    MsgUnlink msg(id++, filename);
+    MsgUnlink msg(msg_id++, filename);
     sendMsg(msg);
     auto resp = recvMsg();
     auto ptr = dynamic_cast<MsgUnlinkResp*>(resp.get());
     assert(ptr);
     assert(ptr->id == msg.id);
+    if (ptr->error == 0)
+    {
+        cache.invalidate(filename);
+    }
     return ptr->error;
 }
+
 int NetFS::rmdir(const std::string& filename)
 {
-    MsgRmdir msg(id++, filename);
+    MsgRmdir msg(msg_id++, filename);
     sendMsg(msg);
     auto resp = recvMsg();
     auto ptr = dynamic_cast<MsgRmdirResp*>(resp.get());
@@ -171,7 +167,7 @@ int NetFS::rmdir(const std::string& filename)
 
 int NetFS::mkdir(const std::string& filename, mode_t mode)
 {
-    MsgMkdir msg(id++, filename, mode);
+    MsgMkdir msg(msg_id++, filename, mode);
     sendMsg(msg);
     auto resp = recvMsg();
     auto ptr = dynamic_cast<MsgMkdirResp*>(resp.get());
@@ -192,4 +188,63 @@ std::unique_ptr<Msg> NetFS::recvMsg()
 {
     return unserializeMsg(
         [&](char* buf, size_t size) mutable { reader.read(buf, size); });
+}
+
+int NetFS::do_write(const std::string& filename, off_t offset,
+                    const char* buf, size_t size)
+{
+    std::vector<char> data;
+    data.resize(size);
+    std::copy(buf, buf + size, data.begin());
+    MsgWrite msg(msg_id++, filename, offset, std::move(data));
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgWriteResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    return ptr->error;
+}
+
+int NetFS::do_read(const std::string& filename, off_t offset, char* buf,
+                   size_t size, size_t& read_size)
+{
+    MsgRead msg(msg_id++, filename, offset, size);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgReadResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->data.size() <= size);
+    if (ptr->error)
+    {
+        return ptr->error;
+    }
+    read_size = ptr->data.size();
+    std::copy(ptr->data.begin(), ptr->data.end(), buf);
+    return 0;
+}
+int NetFS::do_read_attr(const std::string& filename, FileAttr& attr)
+{
+    MsgStat msg(msg_id++, filename);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgStatResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    if (ptr->error != 0)
+    {
+        return ptr->error;
+    }
+    attr.size = ptr->stat.size;
+    attr.mode = ptr->stat.mode;
+    return 0;
+}
+int NetFS::do_write_attr(const std::string& filename, FileAttr attr)
+{
+    MsgTruncate msg(msg_id++, filename, attr.size);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgTruncateResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    return ptr->error;
 }

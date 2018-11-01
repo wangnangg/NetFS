@@ -4,7 +4,9 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <unordered_map>
 #include <vector>
+#include "cache.hpp"
 #include "msg.hpp"
 #include "serial.hpp"
 #include "stream.hpp"
@@ -14,12 +16,15 @@
  */
 class NetFS
 {
-    int id;
+    int msg_id;
     FdWriter writer;
     FdReader reader;
+    size_t block_size;
+    Cache cache;
 
 public:
-    NetFS(const std::string& hostname, const std::string& port);
+    NetFS(const std::string& hostname, const std::string& port,
+          size_t block_size);
 
     int open(const std::string& filename, int flags, mode_t mode);
     int stat(const std::string& filename, struct stat& statbuf);
@@ -40,6 +45,22 @@ public:
     int mkdir(const std::string& filename, mode_t mode);
 
 private:
+    int fetchBlocks(const std::string& filename, uint32_t block_start,
+                    uint32_t block_end, uint32_t& block_count);
+
+    int cacheBlocks(const std::string& filename, uint32_t block_start,
+                    uint32_t block_end);
+    int cacheFile(const std::string& filename);
+
+    int do_write(const std::string& filename, off_t offset, const char* buf,
+                 size_t size);
+    int do_read(const std::string& filename, off_t offset, char* buf,
+                size_t size, size_t& read_size);
+    int do_read_attr(const std::string& filename, FileAttr& attr);
+    int do_write_attr(const std::string& filename, FileAttr attr);
+
     void sendMsg(const Msg& msg);
     std::unique_ptr<Msg> recvMsg();
+    uint32_t blockNum(off_t offset);
+    size_t blockOffset(off_t offset);
 };

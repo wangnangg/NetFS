@@ -3,13 +3,13 @@ linker?=g++
 config?=debug
 build_dir:=build/${config}
 
-common_compile_flags:= -Icommon -Ifuse-3/include -std=c++17 -Wall -Werror -MMD -MP -Wno-unused-variable
+common_compile_flags:=-g -Icommon -Ifuse-3/include -std=c++17 -Wall -Werror -MMD -MP -Wno-unused-variable
 
-client_compile_flags:= -Iclient_src ${common_compile_flags} -D_FILE_OFFSET_BITS=64 -D_REENTRANT -Wextra -Wno-sign-compare -fno-strict-aliasing -Wno-unused-result -Wno-missing-field-initializers
-client_link_flags:= -lstdc++ -pthread -lfuse3 -lm
+client_compile_flags:=-Iclient_src ${common_compile_flags} -D_FILE_OFFSET_BITS=64 -D_REENTRANT -Wextra -Wno-sign-compare -fno-strict-aliasing -Wno-unused-result -Wno-missing-field-initializers
+client_link_flags:=-g -lstdc++ -pthread -lfuse3 -lm
 
-server_compile_flags:= -Iserver_src ${common_compile_flags}
-server_link_flags:= -lstdc++ -pthread -lfuse3 -lm -lPocoNet -lPocoUtil -lPocoFoundation
+server_compile_flags:=-Iserver_src ${common_compile_flags}
+server_link_flags:=-g -lstdc++ -pthread -lfuse3 -lm -lPocoNet -lPocoUtil -lPocoFoundation
 
 gtest_dir:= googletest/googletest
 gtest_compile_flags:= -isystem ${gtest_dir}/include -I${gtest_dir}
@@ -18,28 +18,20 @@ utest_compile_flags:=${gtest_compile_flags} -Iserver_src -Iclient_src ${common_c
 utest_link_flags:= ${server_link_flags}
 
 ifeq ($(config), release)
-  common_compile_flags+= -g -O3
-  client_compile_flags+= -g -O3
-  client_link_flags+= -g -O3
-  server_compile_flags+= -g -O3
-  server_link_flags+= -g -O3
-  utest_link_flags+= -g -O3
+  common_compile_flags+=-O3
+  client_compile_flags+=-O3
+  client_link_flags+=-O3
+  server_compile_flags+=-O3
+  server_link_flags+=-O3
 else
    ifeq ($(config), coverage)
-      common_compile_flags+= -g -ftest-coverage -fprofile-arcs
-	  client_compile_flags+= -g -ftest-coverage -fprofile-arcs
-	  client_link_flags+= -g --coverage
-	  server_compile_flags+= -g -ftest-coverage -fprofile-arcs
-	  server_link_flags+= -g --coverage
-	  utest_link_flags+= -g --coverage
+      common_compile_flags+=-ftest-coverage -fprofile-arcs
+	  client_compile_flags+=-ftest-coverage -fprofile-arcs
+	  client_link_flags+=--coverage
+	  server_compile_flags+=-ftest-coverage -fprofile-arcs
+	  server_link_flags+=--coverage
     else
 	  ifeq ($(config), debug)
-        common_compile_flags+= -g
-		client_compile_flags+= -g
-		client_link_flags+= -g
-		server_compile_flags+= -g
-		server_link_flags+= -g
-        utest_link_flags+= -g
 	  else
 		  $(error Unknown config: $(config))
 	  endif
