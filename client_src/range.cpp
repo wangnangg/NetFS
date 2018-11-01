@@ -81,3 +81,9 @@ void overlay(const char* upper_layer, const RangeList& ranges,
         overlay(upper_layer, r, lower_layer);
     }
 }
+
+std::ostream& operator<<(std::ostream& os, const Range& rg)
+{
+    os << "[" << rg.start << "-" << rg.end << "]";
+    return os;
+}

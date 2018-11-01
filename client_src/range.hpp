@@ -1,5 +1,6 @@
 #pragma once
 #include <cassert>
+#include <iostream>
 #include <vector>
 
 struct Range
@@ -37,3 +38,5 @@ void overlay(const char* upper_layer, Range range, char* lower_layer);
 
 void overlay(const char* upper_layer, const RangeList& ranges,
              char* lower_layer);
+
+std::ostream& operator<<(std::ostream& os, const Range& rg);

@@ -1,8 +1,10 @@
 #include "cache.hpp"
+#include <string.h>
 #include <cassert>
+#include <iostream>
 
-/* write to cache, possibly increase file size. Affected blocks become dirty.
- * Incomplete entries may be created at head or tail.
+/* write to cache, possibly increase file size. The file must exist.  Affected
+ * blocks become dirty.
  *
  */
 int Cache::write(const std::string& filename, size_t offset, const char* buf,
@@ -50,20 +52,25 @@ void Cache::writeBlock(const std::string& filename, size_t block_num,
 {
     assert(offset + size <= _block_size);
     FileCache& fc = _file_map.at(filename);
-    if (fc.entries.find(block_num) == fc.entries.end())
+    auto block_itor = fc.entries.find(block_num);
+    if (block_itor == fc.entries.end())
     {
-        std::vector<char> block(_block_size, 0);
-        std::copy(buf, buf + size, &block[offset]);
-        newEntry(filename, block_num, std::move(block),
-                 RangeList(offset, offset + size), CacheEntry::Dirty,
-                 _recent_list.end());
+        CacheEntry& entry = newEntry(filename, block_num, _recent_list.end());
+        entry.write(offset, buf, size);
     }
     else
     {
-        CacheEntry& entry = fc.entries.at(block_num);
-        std::copy(buf, buf + size, &entry.data[offset]);
-        entry.state = CacheEntry::Dirty;
+        CacheEntry& entry = block_itor->second;
+        entry.write(offset, buf, size);
     }
+}
+size_t Cache::endBlock(size_t fsize) const
+{
+    if (fsize == 0)
+    {
+        return 0;
+    }
+    return blockNum(fsize - 1) + 1;
 }
 
 /* change file size. If size is reduced, blocks outside file boundary are
@@ -86,11 +93,14 @@ int Cache::truncate(const std::string& filename, size_t fsize)
         }
         else
         {
-            block_bound = blockNum(fsize - 1) + 1;
+            block_bound = endBlock(fsize);
         }
         deleteEntryBeyond(filename, block_bound);
         file.attr.size = fsize;
-        file.state = FileCache::Dirty;
+    }
+    else if (fsize > file.attr.size)
+    {
+        file.attr.size = fsize;
     }
     return 0;
 }
@@ -109,20 +119,17 @@ int Cache::stat(const std::string& filename, FileAttr& attr)
 /* create a new cache entry, along with its use record. The initial position
  * of the record is specified by `pos`.
  */
-void Cache::newEntry(const std::string& filename, size_t block_num,
-                     std::vector<char> block, RangeList ranges,
-                     CacheEntry::State state,
-                     std::list<CacheEntryID>::iterator pos)
+CacheEntry& Cache::newEntry(const std::string& filename, size_t block_num,
+                            std::list<CacheEntryID>::iterator pos)
 {
-    assert(block.size() == _block_size);
     FileCache& fc = _file_map.at(filename);
     assert(fc.entries.find(block_num) == fc.entries.end());
     auto rec_itor =
         _recent_list.insert(pos, CacheEntryID{filename, block_num});
-    auto res = fc.entries.insert(
-        {block_num,
-         CacheEntry(state, std::move(block), std::move(ranges), rec_itor)});
+    auto res =
+        fc.entries.insert({block_num, CacheEntry(_block_size, rec_itor)});
     assert(res.second);
+    return res.first->second;
 }
 
 /*delete entry, along with its usage record. */
@@ -131,7 +138,7 @@ void Cache::deleteEntry(const std::string& filename, size_t block_num)
     FileCache& file = _file_map.at(filename);
     auto entry_itor = file.entries.find(block_num);
     assert(entry_itor != file.entries.end());
-    _recent_list.erase(entry_itor->second.use_record);
+    _recent_list.erase(entry_itor->second.useRecord());
     file.entries.erase(entry_itor);
 }
 
@@ -145,7 +152,7 @@ void Cache::deleteEntryBeyond(const std::string& filename, size_t block_bound)
     {
         if (it->first >= block_bound)
         {
-            _recent_list.erase(it->second.use_record);
+            _recent_list.erase(it->second.useRecord());
             it = file.entries.erase(it);
         }
         else
@@ -167,6 +174,7 @@ int Cache::read(const std::string& filename, off_t offset, char* buf,
     int err = cacheFileAttr(filename);
     if (err)
     {
+        std::cerr << "error in read because of cacheFileAttr" << std::endl;
         return err;
     }
     FileCache& fc = _file_map.at(filename);
@@ -182,10 +190,11 @@ int Cache::read(const std::string& filename, off_t offset, char* buf,
     }
 
     size_t block_start = blockNum(offset);
-    size_t block_end = blockNum(offset + size - 1) + 1;
+    size_t block_end = endBlock(offset + size);
     err = cacheBlocks(filename, block_start, block_end);
     if (err)
     {
+        std::cerr << "error in read because of cacheBlocks" << std::endl;
         return err;
     }
     size_t curr_block = block_start;
@@ -213,9 +222,10 @@ void Cache::readBlock(const std::string& filename, size_t block_num,
     assert(offset + size <= _block_size);
     const FileCache& fc = _file_map.at(filename);
     const CacheEntry& entry = fc.entries.at(block_num);
-    std::copy(entry.data.begin() + offset, entry.data.begin() + offset + size,
-              buf);
-    moveToHead(entry.use_record);
+    assert(isFullBlock(fc, block_num));
+    std::copy(entry.data().begin() + offset,
+              entry.data().begin() + offset + size, buf);
+    moveToHead(entry.useRecord());
 }
 
 void Cache::moveToHead(std::list<CacheEntryID>::const_iterator rec_pos)
@@ -236,13 +246,17 @@ int Cache::evictBlocks(size_t count, size_t& eviced_count)
         FileCache& file = _file_map.at(rec.filename);
         auto entry_itor = file.entries.find(rec.block_num);
         assert(entry_itor != file.entries.end());
-        if (entry_itor->second.state == CacheEntry::Dirty)
+        if (entry_itor->second.state() == CacheEntry::Dirty)
         {
-            int err = _content_wb(rec.filename, rec.block_num * _block_size,
-                                  &entry_itor->second.data[0], _block_size);
-            if (err)
+            for (const auto& rg : entry_itor->second.validRanges())
             {
-                return err;
+                int err = _content_wb(
+                    rec.filename, rec.block_num * _block_size + rg.start,
+                    &entry_itor->second.data()[rg.start], rg.end - rg.start);
+                if (err)
+                {
+                    return err;
+                }
             }
         }
         deleteEntry(rec.filename, rec.block_num);
@@ -255,26 +269,27 @@ int Cache::evictBlocks(size_t count, size_t& eviced_count)
 int Cache::flush(const std::string& filename)
 {
     FileCache& fc = _file_map.at(filename);
-    if (fc.state == FileCache::Dirty)
-    {
-        int err = _attr_wb(filename, fc.attr);
-        if (err)
-        {
-            return err;
-        }
-    }
     for (auto& pair : _file_map.at(filename).entries)
     {
-        if (pair.second.state == CacheEntry::Dirty)
+        if (pair.second.state() == CacheEntry::Dirty)
         {
-            int err = _content_wb(filename, pair.first * _block_size,
-                                  &pair.second.data[0], _block_size);
-            if (err)
+            for (auto rg : pair.second.validRanges())
             {
-                return err;
+                int err = _content_wb(
+                    filename, pair.first * _block_size + rg.start,
+                    &pair.second.data()[rg.start], rg.end - rg.start);
+                if (err)
+                {
+                    return err;
+                }
             }
-            pair.second.state = CacheEntry::Clean;
+            pair.second.clean();
         }
+    }
+    int err = _attr_wb(filename, fc.attr);
+    if (err)
+    {
+        return err;
     }
     return 0;
 }
@@ -301,18 +316,81 @@ int Cache::cacheFileAttr(const std::string& filename)
     return 0;
 }
 
-/*non-existent block will be filled with zero*/
+/* a block is considered full if valid_range is from 0 to
+ * _block_size
+ *
+ */
+bool Cache::isFullBlock(const FileCache& fc, size_t block_num) const
+{
+    auto itor = fc.entries.find(block_num);
+    if (itor == fc.entries.end())
+    {
+        return false;
+    }
+    const CacheEntry& entry = itor->second;
+    if (entry.validRanges().count() == 1 &&
+        entry.validRanges().begin()->start == 0 &&
+        entry.validRanges().begin()->end == _block_size)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+/* make sure these blocks are now full in cache.
+ * non-existent block will be fetched.
+ *
+ * partial block will be filled.
+ *
+ * full block will not be touched.
+ *
+ * if _content_ft fails, then no side-effects will happen.
+ */
 int Cache::cacheBlocks(const std::string& filename, size_t block_start,
                        size_t block_end)
 {
+#ifndef NDEBUG
+    std::cout << "caching blocks(in): " << block_start << " - " << block_end
+              << std::endl;
+#endif
+    assert(_file_map.find(filename) != _file_map.end());
     FileCache& fc = _file_map.at(filename);
+    if (fc.attr.size == 0)
+    {
+        return 0;
+    }
     RangeList block_range;
+    /* find continuous blocks and try to fetch them in one message
+     */
     for (size_t b = block_start; b < block_end; b++)
     {
-        if (fc.entries.find(b) == fc.entries.end())
+        if (!isFullBlock(fc, b))
         {
             block_range.insertRange(b, b + 1);
         }
+    }
+
+    if (block_range.count() == 0)
+    {
+        _last_read_hit = true;
+#ifndef NDEBUG
+        std::cout << "caching blocks: hit!" << std::endl;
+#endif
+    }
+    else
+    {
+        _last_read_hit = false;
+#ifndef NDEBUG
+        std::cout << "caching blocks: miss!" << std::endl;
+        for (auto rg : block_range)
+        {
+            std::cout << rg << ", ";
+        }
+        std::cout << std::endl;
+#endif
     }
     for (auto rg : block_range)
     {
@@ -332,11 +410,23 @@ int Cache::cacheBlocks(const std::string& filename, size_t block_start,
         {
             std::vector<char> block_data(_block_size, 0);
             size_t copy_end = std::min(copy_size + _block_size, buf.size());
-            std::copy(buf.begin() + copy_size, buf.begin() + copy_end,
-                      block_data.begin());
-            newEntry(filename, curr_block, std::move(block_data),
-                     RangeList(0, copy_end - copy_size), CacheEntry::Clean,
-                     _recent_list.end());
+            if (copy_end > copy_size)
+            {
+                std::copy(buf.begin() + copy_size, buf.begin() + copy_end,
+                          block_data.begin());
+            }
+            auto block_itor = fc.entries.find(curr_block);
+            if (block_itor == fc.entries.end())
+            {
+                CacheEntry& entry =
+                    newEntry(filename, curr_block, _recent_list.end());
+                entry.fetch(std::move(block_data));
+            }
+            else
+            {
+                CacheEntry& entry = block_itor->second;
+                entry.fetch(std::move(block_data));
+            }
             copy_size = copy_end;
         }
     }

@@ -108,7 +108,7 @@ static int nfs_read(const char *path, char *buf, size_t size, off_t offset,
     {
         return -err;
     }
-    return size;
+    return read_size;
 }
 
 static int nfs_write(const char *path, const char *buf, size_t size,

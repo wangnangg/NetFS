@@ -85,7 +85,7 @@ int NetFS::stat(const std::string& filename, struct stat& stbuf)
     int err = cache.stat(filename, attr);
     if (err)
     {
-        return -err;
+        return err;
     }
     memset(&stbuf, 0, sizeof(struct stat));
     stbuf.st_size = attr.size;
@@ -113,21 +113,30 @@ int NetFS::readdir(const std::string& filename,
 int NetFS::read(const std::string& filename, off_t offset, size_t size,
                 char* buf, size_t& total_read)
 {
+#ifndef NDEBUG
+    std::cout << "NetFS::read(in) filename: " << filename
+              << ", offset: " << offset << ", size: " << size << std::endl;
+#endif
     int err = cache.read(filename, offset, buf, size, total_read);
-    return -err;
+
+#ifndef NDEBUG
+    std::cout << "NetFS::read(out) total_read: " << total_read
+              << ", err: " << err << std::endl;
+#endif
+    return err;
 }
 
 int NetFS::write(const std::string& filename, off_t offset, const char* buf,
                  size_t size)
 {
     int err = cache.write(filename, offset, buf, size);
-    return -err;
+    return err;
 }
 
 int NetFS::truncate(const std::string& filename, off_t offset)
 {
     int err = cache.truncate(filename, offset);
-    return -err;
+    return err;
 }
 
 int NetFS::unlink(const std::string& filename)

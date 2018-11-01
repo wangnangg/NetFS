@@ -12,24 +12,55 @@ struct CacheEntryID
     size_t block_num;
 };
 
-struct CacheEntry
+class CacheEntry
 {
+public:
     enum State
     {
         Clean,
         Dirty
     };
-    State state;
-    std::vector<char> data;
-    RangeList valid_ranges;
-    std::list<CacheEntryID>::iterator use_record;
-    CacheEntry(State state, std::vector<char> data, RangeList ranges,
+
+private:
+    State _state;
+    std::vector<char> _data;
+    RangeList _valid_ranges;
+    std::list<CacheEntryID>::iterator _use_record;
+
+public:
+    CacheEntry(size_t block_size,
                std::list<CacheEntryID>::iterator use_record)
-        : state(state),
-          data(std::move(data)),
-          valid_ranges(std::move(ranges)),
-          use_record(use_record)
+        : _state(Clean),
+          _data(block_size, 0),
+          _valid_ranges(),
+          _use_record(use_record)
     {
+    }
+    size_t blockSize() const { return _data.size(); }
+    State state() const { return _state; }
+    void clean() { _state = Clean; }
+    const std::vector<char>& data() const { return _data; }
+    std::list<CacheEntryID>::iterator useRecord() const
+    {
+        return _use_record;
+    }
+
+    const RangeList& validRanges() const { return _valid_ranges; }
+
+    void fetch(std::vector<char> fetch_data)
+    {
+        assert(fetch_data.size() == blockSize());
+        overlay(&_data[0], validRanges(), &fetch_data[0]);
+        std::swap(_data, fetch_data);
+        _valid_ranges.insertRange(0, blockSize());
+    }
+
+    void write(size_t offset, const char* buf, size_t size)
+    {
+        assert(offset + size <= blockSize());
+        std::copy(buf, buf + size, &_data[offset]);
+        _valid_ranges.insertRange(offset, offset + size);
+        _state = Dirty;
     }
 };
 
@@ -46,10 +77,9 @@ struct FileCache
         Clean,
         Dirty
     };
-    State state;
     FileAttr attr;
     std::unordered_map<size_t, CacheEntry> entries;
-    FileCache(FileAttr attr) : state(Clean), attr(attr) {}
+    FileCache(FileAttr attr) : attr(attr) {}
 };
 
 class Cache
@@ -107,10 +137,12 @@ public:
     size_t countCachedBlocks() const { return _recent_list.size(); }
     int evictBlocks(size_t count, size_t& eviced_count);
 
-private:
-    size_t blockNum(size_t offset) { return offset / _block_size; }
+    bool isLastReadHit() const { return _last_read_hit; }
 
-    size_t blockOffset(size_t offset) { return offset % _block_size; }
+private:
+    size_t blockNum(size_t offset) const { return offset / _block_size; }
+
+    size_t blockOffset(size_t offset) const { return offset % _block_size; }
 
     int cacheFileAttr(const std::string& filename);
     int cacheBlocks(const std::string& filename, size_t block_start,
@@ -122,12 +154,15 @@ private:
     void readBlock(const std::string& filename, size_t block_num,
                    size_t offset, char* buf, size_t size);
 
-    void newEntry(const std::string& filename, size_t block_num,
-                  std::vector<char> block, RangeList ranges,
-                  CacheEntry::State state,
-                  std::list<CacheEntryID>::iterator pos);
+    bool _last_read_hit = false;
+
+    CacheEntry& newEntry(const std::string& filename, size_t block_num,
+                         std::list<CacheEntryID>::iterator pos);
     void deleteEntry(const std::string& filename, size_t block_num);
     void deleteEntryBeyond(const std::string& filename, size_t block_bound);
 
     void moveToHead(std::list<CacheEntryID>::const_iterator rec_pos);
+
+    size_t endBlock(size_t fsize) const;
+    bool isFullBlock(const FileCache& fc, size_t block_num) const;
 };

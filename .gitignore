@@ -4,3 +4,5 @@ GTAGS
 build
 fuse-3/build
 covhtml
+integration_test/nfs_root
+integration_test/tmp
