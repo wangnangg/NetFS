@@ -30,6 +30,7 @@ else
 	  client_link_flags+=--coverage
 	  server_compile_flags+=-ftest-coverage -fprofile-arcs
 	  server_link_flags+=--coverage
+      utest_link_flags+=--coverage
     else
 	  ifeq ($(config), debug)
 	  else

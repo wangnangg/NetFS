@@ -6,3 +6,5 @@ fuse-3/build
 covhtml
 integration_test/nfs_root
 integration_test/tmp
+integration_test/client_out
+integration_test/server_out
