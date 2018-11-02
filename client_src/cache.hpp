@@ -135,7 +135,9 @@ public:
     void invalidate(const std::string& filename);
 
     size_t countCachedBlocks() const { return _recent_list.size(); }
-    int evictBlocks(size_t count, size_t& eviced_count);
+    size_t countDirtyBlocks() const;
+    int evictBlocks(size_t count);
+    int flushBlocks(size_t count);
 
     bool isLastReadHit() const { return _last_read_hit; }
 
@@ -165,4 +167,7 @@ private:
 
     size_t endBlock(size_t fsize) const;
     bool isFullBlock(const FileCache& fc, size_t block_num) const;
+
+    int flushBlocks(const std::string& filename,
+                    const std::vector<size_t>& sorted_dblocks);
 };

@@ -1,5 +1,6 @@
 #include "cache.hpp"
 #include <string.h>
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 
@@ -233,34 +234,58 @@ void Cache::moveToHead(std::list<CacheEntryID>::const_iterator rec_pos)
     _recent_list.splice(_recent_list.begin(), _recent_list, rec_pos);
 }
 
+size_t Cache::countDirtyBlocks() const
+{
+    size_t count = 0;
+    for (const auto& fpair : _file_map)
+    {
+        for (const auto& bpair : fpair.second.entries)
+        {
+            if (bpair.second.state() == CacheEntry::Dirty)
+            {
+                count += 1;
+            }
+        }
+    }
+    return count;
+}
+int Cache::flushBlocks(size_t count)
+{
+    count = std::min(_recent_list.size(), count);
+    std::unordered_map<std::string, std::vector<size_t>> fblocks;
+    auto itor = _recent_list.rbegin();
+    while (itor != _recent_list.rend())
+    {
+        fblocks[itor->filename].push_back(itor->block_num);
+        itor++;
+    }
+    for (auto& pair : fblocks)
+    {
+        std::sort(pair.second.begin(), pair.second.end());
+        int err = flushBlocks(pair.first, pair.second);
+        if (err)
+        {
+            return err;
+        }
+    }
+    return 0;
+}
+
 /* evict blocks from the tail of usage record. dirty blocks are written back.
  * clean blocks are dropped.
  */
-int Cache::evictBlocks(size_t count, size_t& eviced_count)
+int Cache::evictBlocks(size_t count)
 {
-    eviced_count = 0;
     count = std::min(_recent_list.size(), count);
-    while (eviced_count < count)
+    int err = flushBlocks(count);
+    if (err)
+    {
+        return err;
+    }
+    for (size_t i = 0; i < count; i++)
     {
         const auto& rec = _recent_list.back();
-        FileCache& file = _file_map.at(rec.filename);
-        auto entry_itor = file.entries.find(rec.block_num);
-        assert(entry_itor != file.entries.end());
-        if (entry_itor->second.state() == CacheEntry::Dirty)
-        {
-            for (const auto& rg : entry_itor->second.validRanges())
-            {
-                int err = _content_wb(
-                    rec.filename, rec.block_num * _block_size + rg.start,
-                    &entry_itor->second.data()[rg.start], rg.end - rg.start);
-                if (err)
-                {
-                    return err;
-                }
-            }
-        }
         deleteEntry(rec.filename, rec.block_num);
-        eviced_count += 1;
     }
     return 0;
 }
@@ -269,23 +294,85 @@ int Cache::evictBlocks(size_t count, size_t& eviced_count)
 int Cache::flush(const std::string& filename)
 {
     FileCache& fc = _file_map.at(filename);
-    for (auto& pair : _file_map.at(filename).entries)
+    std::vector<size_t> dblocks;
+    for (auto& pair : fc.entries)
     {
         if (pair.second.state() == CacheEntry::Dirty)
         {
-            for (auto rg : pair.second.validRanges())
-            {
-                int err = _content_wb(
-                    filename, pair.first * _block_size + rg.start,
-                    &pair.second.data()[rg.start], rg.end - rg.start);
-                if (err)
-                {
-                    return err;
-                }
-            }
-            pair.second.clean();
+            dblocks.push_back(pair.first);
         }
     }
+
+    std::sort(dblocks.begin(), dblocks.end());
+    flushBlocks(filename, dblocks);
+    return 0;
+}
+
+int Cache::flushBlocks(const std::string& filename,
+                       const std::vector<size_t>& sorted_dblocks)
+{
+    FileCache& fc = _file_map.at(filename);
+    std::vector<char> data;
+    RangeList flush_range;
+    for (size_t b : sorted_dblocks)
+    {
+        CacheEntry& entry = fc.entries.at(b);
+        for (auto rg : entry.validRanges())
+        {
+            size_t abs_start = rg.start + b * _block_size;
+            size_t abs_end = rg.end + b * _block_size;
+            if (flush_range.count() == 0)
+            {
+                flush_range.insertRange(abs_start, abs_end);
+                assert(data.size() == 0);
+                data.insert(data.end(), entry.data().begin() + rg.start,
+                            entry.data().begin() + rg.end);
+            }
+            else
+            {
+                assert(flush_range.count() == 1);
+                if (flush_range.begin()->end == abs_start)
+                {
+                    flush_range.insertRange(abs_start, abs_end);
+                    data.insert(data.end(), entry.data().begin() + rg.start,
+                                entry.data().begin() + rg.end);
+                }
+                else
+                {
+                    assert(flush_range.begin()->end -
+                               flush_range.begin()->start ==
+                           data.size());
+                    int err =
+                        _content_wb(filename, flush_range.begin()->start,
+                                    &data[0], data.size());
+                    if (err)
+                    {
+                        return err;
+                    }
+                    flush_range = RangeList();
+                    data.resize(0);
+                }
+            }
+        }
+    }
+    assert(flush_range.count() <= 1);
+    if (flush_range.count() == 1)
+    {
+        assert(flush_range.begin()->end - flush_range.begin()->start ==
+               data.size());
+        int err = _content_wb(filename, flush_range.begin()->start, &data[0],
+                              data.size());
+        if (err)
+        {
+            return err;
+        }
+    }
+    for (size_t b : sorted_dblocks)
+    {
+        CacheEntry& entry = fc.entries.at(b);
+        entry.clean();
+    }
+
     int err = _attr_wb(filename, fc.attr);
     if (err)
     {

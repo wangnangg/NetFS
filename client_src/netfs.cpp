@@ -46,11 +46,13 @@ int connect(const std::string& hostname, const std::string& port)
 }
 using namespace std::placeholders;
 NetFS::NetFS(const std::string& hostname, const std::string& port,
-             size_t block_size)
+             size_t block_size, size_t max_cache_entry, size_t dirty_thresh)
     : msg_id(0),
       writer(),
       reader(),
       block_size(block_size),
+      max_cache_entry(max_cache_entry),
+      dirty_threshold(dirty_thresh),
       cache(block_size, std::bind(&NetFS::do_write, this, _1, _2, _3, _4),
             std::bind(&NetFS::do_write_attr, this, _1, _2),
             std::bind(&NetFS::do_read, this, _1, _2, _3, _4, _5),
@@ -110,6 +112,21 @@ int NetFS::readdir(const std::string& filename,
     return 0;
 }
 
+int NetFS::evict()
+{
+    if (cache.countCachedBlocks() > max_cache_entry)
+    {
+        std::cout << "evicting" << std::endl;
+        int err = cache.evictBlocks(cache.countCachedBlocks() -
+                                    (max_cache_entry / 2));
+        if (err)
+        {
+            return err;
+        }
+        std::cout << "evicted." << std::endl;
+    }
+    return 0;
+}
 int NetFS::read(const std::string& filename, off_t offset, size_t size,
                 char* buf, size_t& total_read)
 {
@@ -118,19 +135,36 @@ int NetFS::read(const std::string& filename, off_t offset, size_t size,
               << ", offset: " << offset << ", size: " << size << std::endl;
 #endif
     int err = cache.read(filename, offset, buf, size, total_read);
-
+    if (err)
+    {
+        return err;
+    }
+    err = evict();
+    if (err)
+    {
+        return err;
+    }
 #ifndef NDEBUG
     std::cout << "NetFS::read(out) total_read: " << total_read
               << ", err: " << err << std::endl;
 #endif
-    return err;
+    return 0;
 }
 
 int NetFS::write(const std::string& filename, off_t offset, const char* buf,
                  size_t size)
 {
     int err = cache.write(filename, offset, buf, size);
-    return err;
+    if (err)
+    {
+        return err;
+    }
+    err = evict();
+    if (err)
+    {
+        return err;
+    }
+    return 0;
 }
 
 int NetFS::truncate(const std::string& filename, off_t offset)
@@ -174,6 +208,12 @@ int NetFS::mkdir(const std::string& filename, mode_t mode)
     assert(ptr);
     assert(ptr->id == msg.id);
     return ptr->error;
+}
+
+int NetFS::flush(const std::string& filename)
+{
+    int err = cache.flush(filename);
+    return err;
 }
 
 void NetFS::sendMsg(const Msg& msg)

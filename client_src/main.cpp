@@ -60,15 +60,26 @@ static const struct fuse_opt option_spec[] = {OPTION("--ip=%s", ipv4addr),
 
 static void *nfs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_init" << std::endl;
+#endif
     (void)conn;
     cfg->kernel_cache = 0;
-    auto netfs = new NetFS(options.ipv4addr, options.port, 1 << 12);
+    // 16kb page, 10MB cache, 1MB dirty thresh
+    size_t block_size = 1 << 14;
+    size_t entry_count = 10 * (1 << 20) / block_size;
+    size_t dirty_thresh = 1 * (1 << 20) / block_size;
+    auto netfs = new NetFS(options.ipv4addr, options.port, block_size,
+                           entry_count, dirty_thresh);
     return netfs;
 }
 
 static int nfs_getattr(const char *path, struct stat *stbuf,
                        struct fuse_file_info *fi)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_getattr: " << path << std::endl;
+#endif
     (void)fi;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
     return -fs->stat(path, *stbuf);
@@ -78,6 +89,9 @@ static int nfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
                        off_t offset, struct fuse_file_info *fi,
                        enum fuse_readdir_flags flags)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_readdir: " << path << std::endl;
+#endif
     (void)offset;
     (void)fi;
     (void)flags;
@@ -100,6 +114,10 @@ static int nfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 static int nfs_read(const char *path, char *buf, size_t size, off_t offset,
                     struct fuse_file_info *fi)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_read: " << path << ", offset: " << offset
+              << ", size: " << size << std::endl;
+#endif
     (void)fi;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
     size_t read_size;
@@ -114,6 +132,10 @@ static int nfs_read(const char *path, char *buf, size_t size, off_t offset,
 static int nfs_write(const char *path, const char *buf, size_t size,
                      off_t offset, struct fuse_file_info *fi)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_write: " << path << ", offset: " << offset
+              << ", size: " << size << std::endl;
+#endif
     (void)fi;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
     int err = fs->write(path, offset, buf, size);
@@ -129,6 +151,9 @@ static int nfs_write(const char *path, const char *buf, size_t size,
 
 int nfs_open(const char *path, struct fuse_file_info *fi)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_open" << path << std::endl;
+#endif
     (void)fi;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
     int err = fs->open(path, fi->flags, 0);
@@ -136,6 +161,9 @@ int nfs_open(const char *path, struct fuse_file_info *fi)
 }
 int nfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_create" << std::endl;
+#endif
     (void)fi;
     (void)mode;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
@@ -145,6 +173,9 @@ int nfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
 
 int nfs_truncate(const char *path, off_t offset, struct fuse_file_info *fi)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_truncate" << std::endl;
+#endif
     (void)fi;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
     int err = fs->truncate(path, offset);
@@ -153,6 +184,9 @@ int nfs_truncate(const char *path, off_t offset, struct fuse_file_info *fi)
 
 int nfs_unlink(const char *path)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_unlink" << std::endl;
+#endif
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
     int err = fs->unlink(path);
     return -err;
@@ -160,6 +194,9 @@ int nfs_unlink(const char *path)
 
 int nfs_rmdir(const char *path)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_rmdir" << std::endl;
+#endif
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
     int err = fs->rmdir(path);
     return -err;
@@ -167,9 +204,22 @@ int nfs_rmdir(const char *path)
 
 int nfs_mkdir(const char *path, mode_t mode)
 {
+#ifndef NDEBUG
+    std::cout << "nfs_mkdir" << std::endl;
+#endif
     (void)mode;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
     int err = fs->mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO);
+    return -err;
+}
+
+int nfs_flush(const char *path, struct fuse_file_info *)
+{
+#ifndef NDEBUG
+    std::cout << "nfs_flush" << std::endl;
+#endif
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int err = fs->flush(path);
     return -err;
 }
 
@@ -200,6 +250,7 @@ int main(int argc, char *argv[])
     nfs_oper.unlink = nfs_unlink;
     nfs_oper.rmdir = nfs_rmdir;
     nfs_oper.mkdir = nfs_mkdir;
+    nfs_oper.flush = nfs_flush;
 
     int ret;
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);

@@ -20,11 +20,13 @@ class NetFS
     FdWriter writer;
     FdReader reader;
     size_t block_size;
+    size_t max_cache_entry;
+    size_t dirty_threshold;
     Cache cache;
 
 public:
     NetFS(const std::string& hostname, const std::string& port,
-          size_t block_size);
+          size_t block_size, size_t max_cache_entry, size_t dirty_thresh);
 
     int open(const std::string& filename, int flags, mode_t mode);
     int stat(const std::string& filename, struct stat& statbuf);
@@ -43,6 +45,8 @@ public:
     int rmdir(const std::string& filename);
 
     int mkdir(const std::string& filename, mode_t mode);
+
+    int flush(const std::string& filename);
 
 private:
     int fetchBlocks(const std::string& filename, uint32_t block_start,
@@ -63,4 +67,5 @@ private:
     std::unique_ptr<Msg> recvMsg();
     uint32_t blockNum(off_t offset);
     size_t blockOffset(off_t offset);
+    int evict();
 };

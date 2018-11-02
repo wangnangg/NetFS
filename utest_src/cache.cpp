@@ -199,3 +199,61 @@ TEST(cache, flush)
         ASSERT_EQ(read_data[i], data[i]);
     }
 }
+
+TEST(cache, stat)
+{
+    Cache cache(1 << 4, writeContent, writeAttr, readContent, readAttr);
+    std::string fname = "cache_stat";
+    createFile(fname);
+    cache.truncate(fname, 12);
+    cache.flush(fname);
+    cache.invalidate(fname);
+    FileAttr attr;
+    cache.stat(fname, attr);
+    ASSERT_EQ(attr.size, 12);
+}
+
+TEST(cache, evict)
+{
+    Cache cache(1 << 4, writeContent, writeAttr, readContent, readAttr);
+    std::string fname = "cache_evict";
+    std::vector<char> data;
+    for (int i = 40; i < 120; i++)
+    {
+        data.push_back(i);
+    }
+    createFile(fname);
+    int err = cache.write(fname, 0, &data[0], 20);
+    if (err > 0)
+    {
+        std::cout << strerror(err) << std::endl;
+    }
+    ASSERT_EQ(err, 0);
+    ASSERT_EQ(cache.countCachedBlocks(), 2);
+    auto rd = readAll(fname);
+    ASSERT_EQ(rd.size(), 0);
+
+    std::vector<char> read_data(30);
+    size_t read_size;
+    err = cache.read(fname, 0, &read_data[0], 1, read_size);
+    ASSERT_EQ(err, 0);
+    ASSERT_TRUE(cache.isLastReadHit());
+
+    std::cout << "start evicting..." << std::endl;
+    err = cache.evictBlocks(3);
+    ASSERT_EQ(err, 0);
+    ASSERT_EQ(cache.countCachedBlocks(), 0);
+    rd = readAll(fname);
+    ASSERT_EQ(rd.size(), 20);
+    for (int i = 0; i < 20; i++)
+    {
+        ASSERT_EQ(rd[i], data[i]);
+    }
+
+    err = cache.read(fname, 0, &read_data[0], 1, read_size);
+    ASSERT_EQ(err, 0);
+    ASSERT_FALSE(cache.isLastReadHit());
+    ASSERT_EQ(cache.countCachedBlocks(), 1);
+    err = cache.read(fname, 0, &read_data[0], 1, read_size);
+    ASSERT_TRUE(cache.isLastReadHit());
+}
