@@ -137,7 +137,7 @@ public:
     size_t countCachedBlocks() const { return _recent_list.size(); }
     size_t countDirtyBlocks() const;
     int evictBlocks(size_t count);
-    int flushBlocks(size_t count);
+    int flushDirtyBlocks();
 
     bool isLastReadHit() const { return _last_read_hit; }
 

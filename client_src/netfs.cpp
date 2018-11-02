@@ -46,13 +46,14 @@ int connect(const std::string& hostname, const std::string& port)
 }
 using namespace std::placeholders;
 NetFS::NetFS(const std::string& hostname, const std::string& port,
-             size_t block_size, size_t max_cache_entry, size_t dirty_thresh)
+             size_t block_size, size_t max_cache_entry, size_t flush_interval)
     : msg_id(0),
       writer(),
       reader(),
       block_size(block_size),
       max_cache_entry(max_cache_entry),
-      dirty_threshold(dirty_thresh),
+      flush_interval(flush_interval),
+      write_op_count(0),
       cache(block_size, std::bind(&NetFS::do_write, this, _1, _2, _3, _4),
             std::bind(&NetFS::do_write_attr, this, _1, _2),
             std::bind(&NetFS::do_read, this, _1, _2, _3, _4, _5),
@@ -163,6 +164,12 @@ int NetFS::write(const std::string& filename, off_t offset, const char* buf,
     if (err)
     {
         return err;
+    }
+    write_op_count += 1;
+    if (write_op_count >= flush_interval)
+    {
+        write_op_count = 0;
+        cache.flushDirtyBlocks();
     }
     return 0;
 }

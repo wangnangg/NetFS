@@ -249,14 +249,18 @@ size_t Cache::countDirtyBlocks() const
     }
     return count;
 }
-int Cache::flushBlocks(size_t count)
+int Cache::flushDirtyBlocks()
 {
-    count = std::min(_recent_list.size(), count);
     std::unordered_map<std::string, std::vector<size_t>> fblocks;
     auto itor = _recent_list.rbegin();
     while (itor != _recent_list.rend())
     {
-        fblocks[itor->filename].push_back(itor->block_num);
+        if (_file_map.at(itor->filename)
+                .entries.at(itor->block_num)
+                .state() == CacheEntry::Dirty)
+        {
+            fblocks[itor->filename].push_back(itor->block_num);
+        }
         itor++;
     }
     for (auto& pair : fblocks)
@@ -277,7 +281,7 @@ int Cache::flushBlocks(size_t count)
 int Cache::evictBlocks(size_t count)
 {
     count = std::min(_recent_list.size(), count);
-    int err = flushBlocks(count);
+    int err = flushDirtyBlocks();
     if (err)
     {
         return err;

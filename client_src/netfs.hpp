@@ -21,12 +21,13 @@ class NetFS
     FdReader reader;
     size_t block_size;
     size_t max_cache_entry;
-    size_t dirty_threshold;
+    size_t flush_interval;
+    size_t write_op_count;
     Cache cache;
 
 public:
     NetFS(const std::string& hostname, const std::string& port,
-          size_t block_size, size_t max_cache_entry, size_t dirty_thresh);
+          size_t block_size, size_t max_cache_entry, size_t flush_interval);
 
     int open(const std::string& filename, int flags, mode_t mode);
     int stat(const std::string& filename, struct stat& statbuf);
