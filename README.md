@@ -33,6 +33,18 @@ Install POCO library for networking
 sudo apt-get install libpoco-dev
 ```
 
+Install pkg-config
+
+```bash
+sudo apt-get install pkg-config
+```
+
+Install tmux
+
+```bash
+sudo apt-get install tmux
+```
+
 ### After adding/removing source files or changing compilation flags
 
 Writing `makefile` manually is a pain in the ass. `genmake.py` is a little script that generates `makefile` for us, by finding all source files in `client_src` directory and reading compilation flags from `makefile.in`.  Ideally, we do not need to touch `genmake.py`.  If files are added/removed or compilation flags are changed, `makefile` needs to be regenerated. This is accomplished by
