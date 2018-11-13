@@ -45,11 +45,18 @@ class MsgOpenResp : public Msg
 public:
     int32_t id;
     int32_t error;
+    int64_t mtime_sec;
+    int64_t mtime_nsec;
 
 public:
     MsgOpenResp() : Msg(Msg::OpenResp), id(0) {}
-    MsgOpenResp(int32_t id, int32_t error)
-        : Msg(Msg::OpenResp), id(id), error(error)
+    MsgOpenResp(int32_t id, int32_t error, int64_t mtime_sec,
+                int64_t mtime_nsec)
+        : Msg(Msg::OpenResp),
+          id(id),
+          error(error),
+          mtime_sec(mtime_sec),
+          mtime_nsec(mtime_nsec)
     {
     }
 
@@ -58,6 +65,8 @@ protected:
     {
         serializePod<int32_t>(id, ws);
         serializePod<int32_t>(error, ws);
+        serializePod<int64_t>(mtime_sec, ws);
+        serializePod<int64_t>(mtime_nsec, ws);
     }
 
 public:
@@ -66,6 +75,8 @@ public:
         auto res = std::make_unique<MsgOpenResp>();
         res->id = unserializePod<int32_t>(rs);
         res->error = unserializePod<int32_t>(rs);
+        res->mtime_sec = unserializePod<int64_t>(rs);
+        res->mtime_nsec = unserializePod<int64_t>(rs);
         return res;
     }
 };

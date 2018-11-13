@@ -43,6 +43,12 @@ public:
     {
         int64_t size;
         uint64_t mode;
+        int64_t atime_sec;
+        int64_t atime_nsec;
+        int64_t mtime_sec;
+        int64_t mtime_nsec;
+        int64_t ctime_sec;
+        int64_t ctime_nsec;
     } stat;
 #pragma pack(pop)
 public:

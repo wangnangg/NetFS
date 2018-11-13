@@ -65,7 +65,7 @@ TEST(msg, serial_msg_open)
 
 TEST(msg, serial_msg_open_resp)
 {
-    MsgOpenResp msg(234, -10);
+    MsgOpenResp msg(234, -10, -1000, -2000);
     const std::string tmpfile = "ece590-msg-serial";
     {
         auto ws = tmpWriter(tmpfile);
@@ -77,6 +77,8 @@ TEST(msg, serial_msg_open_resp)
         auto ptr = dynamic_cast<MsgOpenResp*>(res.get());
         ASSERT_EQ(ptr->id, msg.id);
         ASSERT_EQ(ptr->error, msg.error);
+        ASSERT_EQ(ptr->mtime_sec, msg.mtime_sec);
+        ASSERT_EQ(ptr->mtime_nsec, msg.mtime_nsec);
     }
 }
 
@@ -99,7 +101,8 @@ TEST(msg, serial_msg_stat)
 
 TEST(msg, serial_msg_stat_resp)
 {
-    MsgStatResp msg(234, 1, {1000, 123});
+    MsgStatResp msg(234, 1,
+                    {1000, 123, -1000, -2000, -3000, -4000, -5000, -6000});
     const std::string tmpfile = "ece590-msg-serial";
     {
         auto ws = tmpWriter(tmpfile);
@@ -113,6 +116,12 @@ TEST(msg, serial_msg_stat_resp)
         ASSERT_EQ(ptr->error, msg.error);
         ASSERT_EQ(ptr->stat.size, msg.stat.size);
         ASSERT_EQ(ptr->stat.mode, msg.stat.mode);
+        ASSERT_EQ(ptr->stat.atime_sec, msg.stat.atime_sec);
+        ASSERT_EQ(ptr->stat.atime_nsec, msg.stat.atime_nsec);
+        ASSERT_EQ(ptr->stat.mtime_sec, msg.stat.mtime_sec);
+        ASSERT_EQ(ptr->stat.mtime_nsec, msg.stat.mtime_nsec);
+        ASSERT_EQ(ptr->stat.ctime_sec, msg.stat.ctime_sec);
+        ASSERT_EQ(ptr->stat.ctime_nsec, msg.stat.ctime_nsec);
     }
 }
 
