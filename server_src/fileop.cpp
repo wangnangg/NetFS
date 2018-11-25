@@ -126,7 +126,6 @@ int FileOp::write(const std::string& fpath, off_t offset, const char* buf,
     {
         return errno;
     }
-    std::cout << before_change.mtime << std::endl;
 
     int fd = ::open(filename.c_str(), O_WRONLY | O_CREAT, 0766);
     if (fd < 0)
@@ -160,7 +159,6 @@ int FileOp::write(const std::string& fpath, off_t offset, const char* buf,
     {
         return errno;
     }
-    std::cout << after_change.mtime << std::endl;
 
     return 0;
 }

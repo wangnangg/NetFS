@@ -84,8 +84,6 @@ std::unique_ptr<Msg> respondWrite(const Msg& msg, FileOp& op)
     resp->error =
         op.write(ptr->filename, ptr->offset, &ptr->data[0], ptr->data.size(),
                  resp->before_change, resp->after_change);
-    std::cout << "before write: " << resp->before_change.mtime
-              << ", after write: " << resp->after_change.mtime << std::endl;
     return resp;
 }
 
