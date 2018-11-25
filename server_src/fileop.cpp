@@ -1,4 +1,6 @@
 #include "fileop.hpp"
+#include <fcntl.h>
+#include <stdio.h>
 
 int loadTime(const std::string& fname, FileTime& time)
 {

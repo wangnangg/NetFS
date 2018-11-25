@@ -289,3 +289,27 @@ TEST(cache, evict)
     err = cache.read(fname, 0, &read_data[0], 1, read_size);
     ASSERT_TRUE(cache.isLastReadHit());
 }
+
+TEST(cache, evict2)
+{
+    Cache cache(4, writeContent, writeAttr, readContent, readAttr);
+    std::string fname = "cache_evict";
+    std::vector<char> data;
+    for (int i = 40; i < 40 + 16; i++)
+    {
+        data.push_back(i);
+    }
+    createFile(fname);
+    int err = cache.write(fname, 0, &data[0], 6);
+    ASSERT_EQ(err, 0);
+    err = cache.write(fname, 8, &data[8], 8);
+    ASSERT_EQ(err, 0);
+    cache.evictBlocks(4);
+    ASSERT_EQ(cache.countCachedBlocks(), 0);
+    cache.write(fname, 6, &data[6], 2);
+    cache.flush(fname);
+
+    auto rd = readAll(fname);
+    ASSERT_EQ(rd.size(), 16);
+    ASSERT_EQ(rd, data);
+}

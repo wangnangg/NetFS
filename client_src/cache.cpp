@@ -366,16 +366,8 @@ int Cache::flushBlocks(const std::string& filename,
         {
             size_t abs_start = rg.start + b * _block_size;
             size_t abs_end = rg.end + b * _block_size;
-            if (flush_range.count() == 0)
+            if (flush_range.count() == 1)
             {
-                flush_range.insertRange(abs_start, abs_end);
-                assert(data.size() == 0);
-                data.insert(data.end(), entry.data().begin() + rg.start,
-                            entry.data().begin() + rg.end);
-            }
-            else
-            {
-                assert(flush_range.count() == 1);
                 if (flush_range.begin()->end == abs_start)
                 {
                     flush_range.insertRange(abs_start, abs_end);
@@ -397,6 +389,14 @@ int Cache::flushBlocks(const std::string& filename,
                     flush_range = RangeList();
                     data.resize(0);
                 }
+            }
+
+            if (flush_range.count() == 0)
+            {
+                flush_range.insertRange(abs_start, abs_end);
+                assert(data.size() == 0);
+                data.insert(data.end(), entry.data().begin() + rg.start,
+                            entry.data().begin() + rg.end);
             }
         }
     }
