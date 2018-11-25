@@ -1,6 +1,4 @@
 #include "fileop.hpp"
-#include <fcntl.h>
-#include <stdio.h>
 
 int loadTime(const std::string& fname, FileTime& time)
 {
@@ -246,8 +244,7 @@ int FileOp::mkdir(const std::string& fpath, mode_t mode)
 int FileOp::rename(const std::string& from, const std::string& to,
                    unsigned int flags)
 {
-    int err = ::renameat2(AT_FDCWD, (_root + from).c_str(), AT_FDCWD,
-                          (_root + to).c_str(), flags);
+    int err = ::rename((_root + from).c_str(), (_root + to).c_str());
     if (err)
     {
         return errno;
