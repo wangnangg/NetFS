@@ -56,14 +56,21 @@ class MsgWriteResp : public Msg
 public:
     int32_t id;
     int32_t error;
+    FileTime before_change;
+    FileTime after_change;
     // more fields here
 public:
     MsgWriteResp() : Msg(Msg::WriteResp), id(0), error(0)  // more fields
 
     {
     }
-    MsgWriteResp(int32_t id, int32_t error)
-        : Msg(Msg::WriteResp), id(id), error(error)  // more fields
+    MsgWriteResp(int32_t id, int32_t error, FileTime before, FileTime after)
+        : Msg(Msg::WriteResp),
+          id(id),
+          error(error),
+          before_change(before),
+          after_change(after)
+    // more fields
     {
     }
 
@@ -72,6 +79,8 @@ protected:
     {
         serializePod<int32_t>(id, ws);
         serializePod<int32_t>(error, ws);
+        serializePod<FileTime>(before_change, ws);
+        serializePod<FileTime>(after_change, ws);
         // your code here
     }
 
@@ -81,6 +90,8 @@ public:
         auto res = std::make_unique<MsgWriteResp>();
         res->id = unserializePod<int32_t>(rs);
         res->error = unserializePod<int32_t>(rs);
+        res->before_change = unserializePod<FileTime>(rs);
+        res->after_change = unserializePod<FileTime>(rs);
         // your code here
         return res;
     }

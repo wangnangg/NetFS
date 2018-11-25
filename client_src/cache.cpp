@@ -4,6 +4,33 @@
 #include <cassert>
 #include <iostream>
 
+/* determine if the file cache is stale.
+ */
+bool Cache::isStale(const std::string& filename) const
+{
+    auto fc_itor = _file_map.find(filename);
+    if (fc_itor == _file_map.end())
+    {
+        return false;
+    }
+    if (fc_itor->second.stale)
+    {
+        return true;
+    }
+    return false;
+}
+
+const FileTime* Cache::getFileTime(const std::string& filename) const
+{
+    auto fc_itor = _file_map.find(filename);
+    if (fc_itor == _file_map.end())
+    {
+        return nullptr;
+    }
+
+    return &fc_itor->second.attr.time;
+}
+
 /* write to cache, possibly increase file size. The file must exist.  Affected
  * blocks become dirty.
  *
@@ -17,14 +44,10 @@ int Cache::write(const std::string& filename, size_t offset, const char* buf,
         return err;
     }
     FileCache& fc = _file_map.at(filename);
-    const FileAttr& attr = fc.attr;
+    FileAttr& attr = fc.attr;
     if (offset + size > attr.size)
     {
-        int err = truncate(filename, offset + size);
-        if (err)
-        {
-            return err;
-        }
+        attr.size = offset + size;
     }
     size_t curr_block = blockNum(offset);
     size_t bstart = blockOffset(offset);
@@ -98,10 +121,20 @@ int Cache::truncate(const std::string& filename, size_t fsize)
         }
         deleteEntryBeyond(filename, block_bound);
         file.attr.size = fsize;
+        int err = _attr_wb(filename, file.attr, file.stale);
+        if (err)
+        {
+            return err;
+        }
     }
     else if (fsize > file.attr.size)
     {
         file.attr.size = fsize;
+        int err = _attr_wb(filename, file.attr, file.stale);
+        if (err)
+        {
+            return err;
+        }
     }
     return 0;
 }
@@ -297,7 +330,12 @@ int Cache::evictBlocks(size_t count)
 /*write back all dirty blocks*/
 int Cache::flush(const std::string& filename)
 {
-    FileCache& fc = _file_map.at(filename);
+    auto fc_itor = _file_map.find(filename);
+    if (fc_itor == _file_map.end())
+    {
+        return 0;
+    }
+    FileCache& fc = fc_itor->second;
     std::vector<size_t> dblocks;
     for (auto& pair : fc.entries)
     {
@@ -307,8 +345,11 @@ int Cache::flush(const std::string& filename)
         }
     }
 
-    std::sort(dblocks.begin(), dblocks.end());
-    flushBlocks(filename, dblocks);
+    if (dblocks.size() > 0)
+    {
+        std::sort(dblocks.begin(), dblocks.end());
+        flushBlocks(filename, dblocks);
+    }
     return 0;
 }
 
@@ -346,9 +387,9 @@ int Cache::flushBlocks(const std::string& filename,
                     assert(flush_range.begin()->end -
                                flush_range.begin()->start ==
                            data.size());
-                    int err =
-                        _content_wb(filename, flush_range.begin()->start,
-                                    &data[0], data.size());
+                    int err = _content_wb(
+                        filename, flush_range.begin()->start, &data[0],
+                        data.size(), fc.attr.time, fc.stale);
                     if (err)
                     {
                         return err;
@@ -365,7 +406,7 @@ int Cache::flushBlocks(const std::string& filename,
         assert(flush_range.begin()->end - flush_range.begin()->start ==
                data.size());
         int err = _content_wb(filename, flush_range.begin()->start, &data[0],
-                              data.size());
+                              data.size(), fc.attr.time, fc.stale);
         if (err)
         {
             return err;
@@ -377,7 +418,7 @@ int Cache::flushBlocks(const std::string& filename,
         entry.clean();
     }
 
-    int err = _attr_wb(filename, fc.attr);
+    int err = _attr_wb(filename, fc.attr, fc.stale);
     if (err)
     {
         return err;
@@ -387,6 +428,10 @@ int Cache::flushBlocks(const std::string& filename,
 
 void Cache::invalidate(const std::string& filename)
 {
+    if (_file_map.find(filename) == _file_map.end())
+    {
+        return;
+    }
     deleteEntryBeyond(filename, 0);
     _file_map.erase(filename);
 }

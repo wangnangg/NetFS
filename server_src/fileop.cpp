@@ -1,18 +1,49 @@
 #include "fileop.hpp"
 
-int FileOp::open(const std::string& fpath, int flags, mode_t mode)
+int loadTime(const std::string& fname, FileTime& time)
+{
+    struct stat stbuf;
+    int err = stat(fname.c_str(), &stbuf);
+    if (err == 0)
+    {
+        time = makeFileTime(stbuf);
+        return 0;
+    }
+    else
+    {
+        return err;
+    }
+}
+
+int FileOp::access(const std::string& fpath, FileTime& time)
 {
     auto filename = _root + fpath;
-    int fd = ::open(filename.c_str(), flags, mode);
+
+    int err = ::access(filename.c_str(), R_OK | W_OK);
+    if (err < 0)
+    {
+        return errno;
+    }
+    err = loadTime(filename, time);
+    if (err < 0)
+    {
+        return errno;
+    }
+
+    return 0;
+}
+
+int FileOp::creat(const std::string& fpath)
+{
+    auto filename = _root + fpath;
+
+    int fd = ::open(filename.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 00777);
     if (fd < 0)
     {
         return errno;
     }
-    else
-    {
-        ::close(fd);
-        return 0;
-    }
+    ::close(fd);
+    return 0;
 }
 
 int FileOp::stat(const std::string& fpath, struct stat& stbuf)
@@ -86,15 +117,23 @@ int FileOp::read(const std::string& fpath, off_t offset, size_t size,
 }
 
 int FileOp::write(const std::string& fpath, off_t offset, const char* buf,
-                  size_t size)
+                  size_t size, FileTime& before_change,
+                  FileTime& after_change)
 {
     auto filename = _root + fpath;
-    int fd = ::open(filename.c_str(), O_WRONLY);
+    int err = loadTime(filename, before_change);
+    if (err < 0)
+    {
+        return errno;
+    }
+    std::cout << before_change.mtime << std::endl;
+
+    int fd = ::open(filename.c_str(), O_WRONLY | O_CREAT, 0766);
     if (fd < 0)
     {
         return errno;
     }
-    int err = ::lseek(fd, offset, SEEK_SET);
+    err = ::lseek(fd, offset, SEEK_SET);
     if (err < 0)
     {
         close(fd);
@@ -102,6 +141,7 @@ int FileOp::write(const std::string& fpath, off_t offset, const char* buf,
     }
     ssize_t written_size = ::write(fd, buf, size);
     close(fd);
+
     if (written_size < 0)
     {
         perror("write");
@@ -114,24 +154,39 @@ int FileOp::write(const std::string& fpath, off_t offset, const char* buf,
                   << std::endl;
         return EDQUOT;
     }
-    else
+
+    err = loadTime(filename, after_change);
+    if (err < 0)
     {
-        return 0;
+        return errno;
     }
+    std::cout << after_change.mtime << std::endl;
+
+    return 0;
 }
 
-int FileOp::truncate(const std::string& fpath, off_t offset)
+int FileOp::truncate(const std::string& fpath, off_t offset,
+                     FileTime& before_change, FileTime& after_change)
 {
     auto filename = _root + fpath;
+    int err = loadTime(filename, before_change);
+    if (err < 0)
+    {
+        return errno;
+    }
     int res = ::truncate(filename.c_str(), offset);
     if (res < 0)
     {
         return errno;
     }
-    else
+
+    err = loadTime(filename, after_change);
+    if (err < 0)
     {
-        return res;
+        return errno;
     }
+
+    return 0;
 }
 
 int FileOp::unlink(const std::string& fpath)

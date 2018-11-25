@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 #include "serial.hpp"
+#include "time.hpp"
 
 /* All message classes should derive from the *Msg* class, which contains one
  * field: message type. The derived message can (and should) have its own
@@ -68,8 +69,10 @@ class Msg
 public:
     enum Type
     {
-        Open = 0,
-        OpenResp,
+        Access = 0,
+        AccessResp,
+        Create,
+        CreateResp,
         Stat,
         StatResp,
         Readdir,

@@ -1,16 +1,15 @@
 #pragma once
 #include "msg_base.hpp"
-
-class MsgStat : public Msg
+class MsgAccess : public Msg
 {
 public:
     int32_t id;
     std::string filename;
 
 public:
-    MsgStat() : Msg(Msg::Stat), id(0), filename() {}
-    MsgStat(int32_t id, std::string filename)
-        : Msg(Msg::Stat), id(id), filename(std::move(filename))
+    MsgAccess() : Msg(Msg::Access), id(0), filename() {}
+    MsgAccess(int32_t id, std::string filename)
+        : Msg(Msg::Access), id(id), filename(std::move(filename))
     {
     }
 
@@ -24,36 +23,24 @@ protected:
 public:
     static std::unique_ptr<Msg> unserialize(const SReader& rs)
     {
-        auto res = std::make_unique<MsgStat>();
+        auto res = std::make_unique<MsgAccess>();
         res->id = unserializePod<int32_t>(rs);
         res->filename = unserializeString(rs);
         return res;
     }
 };
 
-class MsgStatResp : public Msg
+class MsgAccessResp : public Msg
 {
 public:
     int32_t id;
     int32_t error;
-// make sure no padding is inserted. The layout should be identical in any
-// machine.
-#pragma pack(push, 1)
-    struct Stat
-    {
-        int64_t size;
-        uint64_t mode;
-        FileTime time;
-    } stat;
-#pragma pack(pop)
-public:
-    MsgStatResp()
-        : Msg(Msg::StatResp), id(0), error(0), stat()  // more fields
+    FileTime time;
 
-    {
-    }
-    MsgStatResp(int32_t id, int32_t error, Stat stat)
-        : Msg(Msg::StatResp), id(id), error(error), stat(stat)  // more fields
+public:
+    MsgAccessResp() : Msg(Msg::AccessResp), id(0) {}
+    MsgAccessResp(int32_t id, int32_t error, const FileTime& time)
+        : Msg(Msg::AccessResp), id(id), error(error), time(time)
     {
     }
 
@@ -62,16 +49,16 @@ protected:
     {
         serializePod<int32_t>(id, ws);
         serializePod<int32_t>(error, ws);
-        serializePod<Stat>(stat, ws);
+        serializePod<FileTime>(time, ws);
     }
 
 public:
     static std::unique_ptr<Msg> unserialize(const SReader& rs)
     {
-        auto res = std::make_unique<MsgStatResp>();
+        auto res = std::make_unique<MsgAccessResp>();
         res->id = unserializePod<int32_t>(rs);
         res->error = unserializePod<int32_t>(rs);
-        res->stat = unserializePod<Stat>(rs);
+        res->time = unserializePod<FileTime>(rs);
         return res;
     }
 };

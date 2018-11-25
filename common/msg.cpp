@@ -2,8 +2,10 @@
 
 std::unordered_map<Msg::Type, std::unique_ptr<Msg> (*)(const SReader& rs)>
     unserializorLookup = {
-        {Msg::Open, MsgOpen::unserialize},
-        {Msg::OpenResp, MsgOpenResp::unserialize},
+        {Msg::Access, MsgAccess::unserialize},
+        {Msg::AccessResp, MsgAccessResp::unserialize},
+        {Msg::Create, MsgCreate::unserialize},
+        {Msg::CreateResp, MsgCreateResp::unserialize},
         {Msg::Stat, MsgStat::unserialize},
         {Msg::StatResp, MsgStatResp::unserialize},
         {Msg::Readdir, MsgReaddir::unserialize},

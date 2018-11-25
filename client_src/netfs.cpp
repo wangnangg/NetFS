@@ -54,8 +54,9 @@ NetFS::NetFS(const std::string& hostname, const std::string& port,
       max_cache_entry(max_cache_entry),
       flush_interval(flush_interval),
       write_op_count(0),
-      cache(block_size, std::bind(&NetFS::do_write, this, _1, _2, _3, _4),
-            std::bind(&NetFS::do_write_attr, this, _1, _2),
+      cache(block_size,
+            std::bind(&NetFS::do_write, this, _1, _2, _3, _4, _5, _6),
+            std::bind(&NetFS::do_write_attr, this, _1, _2, _3),
             std::bind(&NetFS::do_read, this, _1, _2, _3, _4, _5),
             std::bind(&NetFS::do_read_attr, this, _1, _2)
 
@@ -71,12 +72,50 @@ NetFS::NetFS(const std::string& hostname, const std::string& port,
     reader = FdReader(rd);
 }
 
-int NetFS::open(const std::string& filename, int flags, mode_t mode)
+int NetFS::access(const std::string& filename)
 {
-    MsgOpen msg(msg_id++, flags, filename, mode);
+    MsgAccess msg(msg_id++, filename);
     sendMsg(msg);
     auto resp = recvMsg();
-    auto ptr = dynamic_cast<MsgOpenResp*>(resp.get());
+    auto ptr = dynamic_cast<MsgAccessResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+
+    if (ptr->error != 0)
+    {
+        cache.invalidate(filename);
+        return ptr->error;
+    }
+    else
+    {
+        if (cache.isStale(filename))
+        {
+            std::cout << "stale cache detected (past stale) " << std::endl;
+            cache.invalidate(filename);
+        }
+        else
+        {
+            const FileTime* cached_time = cache.getFileTime(filename);
+            if (cached_time != nullptr && *cached_time != ptr->time)
+            {
+                std::cout << "stale cache detected ";
+                std::cout << "(time miss match, cached: "
+                          << cached_time->mtime
+                          << ", remote: " << ptr->time.mtime << ")"
+                          << std::endl;
+                cache.invalidate(filename);
+            }
+        }
+        return 0;
+    }
+}
+
+int NetFS::create(const std::string& filename)
+{
+    MsgCreate msg(msg_id++, filename);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgCreateResp*>(resp.get());
     assert(ptr);
     assert(ptr->id == msg.id);
     return ptr->error;
@@ -93,6 +132,12 @@ int NetFS::stat(const std::string& filename, struct stat& stbuf)
     memset(&stbuf, 0, sizeof(struct stat));
     stbuf.st_size = attr.size;
     stbuf.st_mode = attr.mode;
+    stbuf.st_atim.tv_sec = attr.time.atime.time_sec;
+    stbuf.st_atim.tv_nsec = attr.time.atime.time_nsec;
+    stbuf.st_mtim.tv_sec = attr.time.mtime.time_sec;
+    stbuf.st_mtim.tv_nsec = attr.time.mtime.time_nsec;
+    stbuf.st_ctim.tv_sec = attr.time.ctime.time_sec;
+    stbuf.st_ctim.tv_nsec = attr.time.ctime.time_nsec;
     return 0;
 }
 
@@ -237,8 +282,14 @@ std::unique_ptr<Msg> NetFS::recvMsg()
         [&](char* buf, size_t size) mutable { reader.read(buf, size); });
 }
 
+/* write to the file. detect if the file has been modified by other clients,
+ * mark it using `stale`.
+ * write error, discrepancy between before_change and cached_time, are all
+ * treated as stale
+ */
 int NetFS::do_write(const std::string& filename, off_t offset,
-                    const char* buf, size_t size)
+                    const char* buf, size_t size, FileTime& cached_time,
+                    bool& stale)
 {
     std::vector<char> data;
     data.resize(size);
@@ -249,7 +300,24 @@ int NetFS::do_write(const std::string& filename, off_t offset,
     auto ptr = dynamic_cast<MsgWriteResp*>(resp.get());
     assert(ptr);
     assert(ptr->id == msg.id);
-    return ptr->error;
+    if (ptr->error)
+    {
+        std::cout << "error detected during write" << std::endl;
+        stale = true;
+        return ptr->error;
+    }
+    else
+    {
+        if (ptr->before_change != cached_time)
+        {
+            std::cout << "stale detected during write";
+            std::cout << "(cached: " << cached_time.mtime;
+            std::cout << " remote: " << ptr->before_change.mtime << std::endl;
+            stale = true;
+        }
+        cached_time = ptr->after_change;
+        return 0;
+    }
 }
 
 int NetFS::do_read(const std::string& filename, off_t offset, char* buf,
@@ -283,9 +351,11 @@ int NetFS::do_read_attr(const std::string& filename, FileAttr& attr)
     }
     attr.size = ptr->stat.size;
     attr.mode = ptr->stat.mode;
+    attr.time = ptr->stat.time;
     return 0;
 }
-int NetFS::do_write_attr(const std::string& filename, FileAttr attr)
+int NetFS::do_write_attr(const std::string& filename, FileAttr& attr,
+                         bool& stale)
 {
     MsgTruncate msg(msg_id++, filename, attr.size);
     sendMsg(msg);
@@ -293,5 +363,23 @@ int NetFS::do_write_attr(const std::string& filename, FileAttr attr)
     auto ptr = dynamic_cast<MsgTruncateResp*>(resp.get());
     assert(ptr);
     assert(ptr->id == msg.id);
-    return ptr->error;
+    if (ptr->error != 0)
+    {
+        std::cout << "error detected during attr write" << std::endl;
+        stale = true;
+        return ptr->error;
+    }
+    else
+    {
+        if (ptr->before_change != attr.time)
+        {
+            std::cout << "stale detected during attr write: ";
+            std::cout << "(cached: " << attr.time.mtime,
+                std::cout << " remote: " << ptr->before_change.mtime
+                          << std::endl;
+            stale = true;
+        }
+        attr.time = ptr->after_change;
+        return 0;
+    }
 }

@@ -48,6 +48,8 @@ class MsgTruncateResp : public Msg
 public:
     int32_t id;
     int32_t error;
+    FileTime before_change;
+    FileTime after_change;
     // more fields here
 public:
     MsgTruncateResp()
@@ -56,8 +58,13 @@ public:
 
     {
     }
-    MsgTruncateResp(int32_t id, int32_t err)
-        : Msg(Msg::TruncateResp), id(id), error(err)  // more fields
+    MsgTruncateResp(int32_t id, int32_t err, FileTime before, FileTime after)
+        : Msg(Msg::TruncateResp),
+          id(id),
+          error(err),
+          before_change(before),
+          after_change(after)
+    // more fields
     {
     }
 
@@ -66,6 +73,8 @@ protected:
     {
         serializePod<int32_t>(id, ws);
         serializePod<int32_t>(error, ws);
+        serializePod<FileTime>(before_change, ws);
+        serializePod<FileTime>(after_change, ws);
         // your code here
     }
 
@@ -75,6 +84,8 @@ public:
         auto res = std::make_unique<MsgTruncateResp>();
         res->id = unserializePod<int32_t>(rs);
         res->error = unserializePod<int32_t>(rs);
+        res->before_change = unserializePod<FileTime>(rs);
+        res->after_change = unserializePod<FileTime>(rs);
         // your code here
         return res;
     }

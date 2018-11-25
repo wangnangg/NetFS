@@ -2,16 +2,27 @@
 #include <cassert>
 #include <iostream>
 
-std::unique_ptr<Msg> respondOpen(const Msg& msg, FileOp& op)
+std::unique_ptr<Msg> respondAccess(const Msg& msg, FileOp& op)
 {
-    auto ptr = dynamic_cast<const MsgOpen*>(&msg);
+    auto ptr = dynamic_cast<const MsgAccess*>(&msg);
     assert(ptr);
-    std::cout << "MsgOpen id: " << ptr->id << ", filename: " << ptr->filename
-              << ", flag: " << ptr->flag << ", mode: " << ptr->mode
-              << std::endl;
-    auto resp = std::make_unique<MsgOpenResp>();
+    std::cout << "MsgAccess id: " << ptr->id
+              << ", filename: " << ptr->filename << std::endl;
+    auto resp = std::make_unique<MsgAccessResp>();
     resp->id = ptr->id;
-    resp->error = op.open(ptr->filename, ptr->flag, ptr->mode);
+    resp->error = op.access(ptr->filename, resp->time);
+    return resp;
+}
+
+std::unique_ptr<Msg> respondCreate(const Msg& msg, FileOp& op)
+{
+    auto ptr = dynamic_cast<const MsgCreate*>(&msg);
+    assert(ptr);
+    std::cout << "MsgCreate id: " << ptr->id
+              << ", filename: " << ptr->filename << std::endl;
+    auto resp = std::make_unique<MsgCreateResp>();
+    resp->id = ptr->id;
+    resp->error = op.creat(ptr->filename);
     return resp;
 }
 
@@ -27,6 +38,7 @@ std::unique_ptr<Msg> respondStat(const Msg& msg, FileOp& op)
     resp->error = op.stat(ptr->filename, stbuf);
     resp->stat.size = stbuf.st_size;
     resp->stat.mode = stbuf.st_mode;
+    resp->stat.time = makeFileTime(stbuf);
     return resp;
 }
 
@@ -70,7 +82,10 @@ std::unique_ptr<Msg> respondWrite(const Msg& msg, FileOp& op)
     resp->id = ptr->id;
     assert(ptr->data.size() > 0);
     resp->error =
-        op.write(ptr->filename, ptr->offset, &ptr->data[0], ptr->data.size());
+        op.write(ptr->filename, ptr->offset, &ptr->data[0], ptr->data.size(),
+                 resp->before_change, resp->after_change);
+    std::cout << "before write: " << resp->before_change.mtime
+              << ", after write: " << resp->after_change.mtime << std::endl;
     return resp;
 }
 
@@ -82,8 +97,10 @@ std::unique_ptr<Msg> respondTruncate(const Msg& msg, FileOp& op)
               << ", filename: " << ptr->filename
               << ", offset: " << ptr->offset << std::endl;
     auto resp = std::make_unique<MsgTruncateResp>();
+
     resp->id = ptr->id;
-    resp->error = op.truncate(ptr->filename, ptr->offset);
+    resp->error = op.truncate(ptr->filename, ptr->offset, resp->before_change,
+                              resp->after_change);
     return resp;
 }
 
@@ -126,9 +143,9 @@ std::unique_ptr<Msg> respondMkdir(const Msg& msg, FileOp& op)
 std::unordered_map<Msg::Type,
                    std::unique_ptr<Msg> (*)(const Msg& msg, FileOp& op)>
     responder_map = {
-        {Msg::Open, respondOpen},       {Msg::Stat, respondStat},
-        {Msg::Readdir, respondReaddir}, {Msg::Read, respondRead},
-        {Msg::Write, respondWrite},     {Msg::Truncate, respondTruncate},
-        {Msg::Unlink, respondUnlink},   {Msg::Rmdir, respondRmdir},
-        {Msg::Mkdir, respondMkdir},
+        {Msg::Access, respondAccess},     {Msg::Create, respondCreate},
+        {Msg::Stat, respondStat},         {Msg::Readdir, respondReaddir},
+        {Msg::Read, respondRead},         {Msg::Write, respondWrite},
+        {Msg::Truncate, respondTruncate}, {Msg::Unlink, respondUnlink},
+        {Msg::Rmdir, respondRmdir},       {Msg::Mkdir, respondMkdir},
 };

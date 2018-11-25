@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stdexcept>
 
 static const char* getUserName()
@@ -34,34 +35,59 @@ static std::vector<char> readAll(const std::string& fname)
     return buf;
 }
 
+static void beforeChange(const std::string& fname, FileTime& time,
+                         bool& stale)
+{
+    struct stat stbuf;
+    int err = stat(fname.c_str(), &stbuf);
+    assert(err == 0);
+    if (time != makeFileTime(stbuf))
+    {
+        stale = true;
+    }
+}
+
+static void afterChange(const std::string& fname, FileTime& time)
+{
+    struct stat stbuf;
+    int err = stat(fname.c_str(), &stbuf);
+    assert(err == 0);
+    time = makeFileTime(stbuf);
+}
+
 static int writeContent(const std::string& fname, size_t offset,
-                        const char* data, size_t size)
+                        const char* data, size_t size, FileTime& time,
+                        bool& stale)
 {
     std::cout << "write to " << fname << " at " << offset
               << " of size: " << size;
     std::string str(data, size);
     std::cout << ". content: " << str << std::endl;
     auto fpath = tmpFilename(fname);
+    beforeChange(fpath, time, stale);
     FILE* fp = fopen(fpath.c_str(), "r+");
     int err = fseek(fp, offset, SEEK_SET);
     assert(err == 0);
     err = fwrite(data, 1, size, fp);
     assert(err == (int)size);
     fclose(fp);
+    afterChange(fpath, time);
     return 0;
 }
 
-static int writeAttr(const std::string& fname, FileAttr attr)
+static int writeAttr(const std::string& fname, FileAttr& attr, bool& stale)
 {
     std::cout << "truncating file: " << fname << " to size: " << attr.size
               << std::endl;
     auto fpath = tmpFilename(fname);
+    beforeChange(fpath, attr.time, stale);
     int res = truncate(fpath.c_str(), attr.size);
     if (res < 0)
     {
         perror("truncate");
     }
     assert(res == 0);
+    afterChange(fpath, attr.time);
     return 0;
 }
 
@@ -205,11 +231,14 @@ TEST(cache, stat)
     Cache cache(1 << 4, writeContent, writeAttr, readContent, readAttr);
     std::string fname = "cache_stat";
     createFile(fname);
-    cache.truncate(fname, 12);
-    cache.flush(fname);
+    int err = cache.truncate(fname, 12);
+    ASSERT_EQ(err, 0);
+    err = cache.flush(fname);
+    ASSERT_EQ(err, 0);
     cache.invalidate(fname);
     FileAttr attr;
-    cache.stat(fname, attr);
+    err = cache.stat(fname, attr);
+    ASSERT_EQ(err, 0);
     ASSERT_EQ(attr.size, 12);
 }
 

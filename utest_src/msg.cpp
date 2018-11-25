@@ -44,9 +44,9 @@ static SWriter tmpWriter(const std::string& fname)
     };
 }
 
-TEST(msg, serial_msg_open)
+TEST(msg, serial_msg_access)
 {
-    MsgOpen msg(123, 456, "ece590", 12);
+    MsgAccess msg(123, "ece590");
     const std::string tmpfile = "ece590-msg-serial";
     {
         auto ws = tmpWriter(tmpfile);
@@ -55,17 +55,15 @@ TEST(msg, serial_msg_open)
     {
         auto rs = tmpReader(tmpfile);
         auto res = unserializeMsg(rs);
-        auto ptr = dynamic_cast<MsgOpen*>(res.get());
+        auto ptr = dynamic_cast<MsgAccess*>(res.get());
         ASSERT_EQ(ptr->id, msg.id);
-        ASSERT_EQ(ptr->flag, msg.flag);
         ASSERT_EQ(ptr->filename, msg.filename);
-        ASSERT_EQ(ptr->mode, msg.mode);
     }
 }
 
-TEST(msg, serial_msg_open_resp)
+TEST(msg, serial_msg_access_resp)
 {
-    MsgOpenResp msg(234, -10, -1000, -2000);
+    MsgAccessResp msg(234, -10, {{-1000, -2000}, {3000, 400}, {5, 6}});
     const std::string tmpfile = "ece590-msg-serial";
     {
         auto ws = tmpWriter(tmpfile);
@@ -74,11 +72,44 @@ TEST(msg, serial_msg_open_resp)
     {
         auto rs = tmpReader(tmpfile);
         auto res = unserializeMsg(rs);
-        auto ptr = dynamic_cast<MsgOpenResp*>(res.get());
+        auto ptr = dynamic_cast<MsgAccessResp*>(res.get());
         ASSERT_EQ(ptr->id, msg.id);
         ASSERT_EQ(ptr->error, msg.error);
-        ASSERT_EQ(ptr->mtime_sec, msg.mtime_sec);
-        ASSERT_EQ(ptr->mtime_nsec, msg.mtime_nsec);
+        ASSERT_EQ(ptr->time, msg.time);
+    }
+}
+
+TEST(msg, serial_msg_create)
+{
+    MsgCreate msg(123, "ece590");
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgCreate*>(res.get());
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->filename, msg.filename);
+    }
+}
+
+TEST(msg, serial_msg_create_resp)
+{
+    MsgCreateResp msg(123, 234);
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgCreateResp*>(res.get());
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->error, msg.error);
     }
 }
 
@@ -101,8 +132,9 @@ TEST(msg, serial_msg_stat)
 
 TEST(msg, serial_msg_stat_resp)
 {
-    MsgStatResp msg(234, 1,
-                    {1000, 123, -1000, -2000, -3000, -4000, -5000, -6000});
+    MsgStatResp msg(
+        234, 1,
+        {1000, 123, {{-1000, -2000}, {-3000, -4000}, {-5000, -6000}}});
     const std::string tmpfile = "ece590-msg-serial";
     {
         auto ws = tmpWriter(tmpfile);
@@ -116,12 +148,7 @@ TEST(msg, serial_msg_stat_resp)
         ASSERT_EQ(ptr->error, msg.error);
         ASSERT_EQ(ptr->stat.size, msg.stat.size);
         ASSERT_EQ(ptr->stat.mode, msg.stat.mode);
-        ASSERT_EQ(ptr->stat.atime_sec, msg.stat.atime_sec);
-        ASSERT_EQ(ptr->stat.atime_nsec, msg.stat.atime_nsec);
-        ASSERT_EQ(ptr->stat.mtime_sec, msg.stat.mtime_sec);
-        ASSERT_EQ(ptr->stat.mtime_nsec, msg.stat.mtime_nsec);
-        ASSERT_EQ(ptr->stat.ctime_sec, msg.stat.ctime_sec);
-        ASSERT_EQ(ptr->stat.ctime_nsec, msg.stat.ctime_nsec);
+        ASSERT_EQ(ptr->stat.time, msg.stat.time);
     }
 }
 
@@ -223,7 +250,8 @@ TEST(msg, serial_msg_write)
 
 TEST(msg, serial_msg_write_resp)
 {
-    MsgWriteResp msg(1, 5);
+    MsgWriteResp msg(1, 5, {{1, 2}, {3, 4}, {5, 6}},
+                     {{7, 8}, {9, 10}, {11, 12}});
     const std::string tmpfile = "ece590-msg-serial";
     {
         auto ws = tmpWriter(tmpfile);
@@ -236,6 +264,8 @@ TEST(msg, serial_msg_write_resp)
         ASSERT_TRUE(ptr);
         ASSERT_EQ(ptr->id, msg.id);
         ASSERT_EQ(ptr->error, msg.error);
+        ASSERT_EQ(ptr->before_change, msg.before_change);
+        ASSERT_EQ(ptr->after_change, msg.after_change);
     }
 }
 
@@ -260,7 +290,8 @@ TEST(msg, serial_msg_truncate)
 
 TEST(msg, serial_msg_truncate_resp)
 {
-    MsgTruncateResp msg(1, 123);
+    MsgTruncateResp msg(1, 123, {{1, 2}, {3, 4}, {5, 6}},
+                        {{7, 8}, {9, 10}, {11, 12}});
     const std::string tmpfile = "ece590-msg-serial";
     {
         auto ws = tmpWriter(tmpfile);
@@ -273,6 +304,8 @@ TEST(msg, serial_msg_truncate_resp)
         ASSERT_TRUE(ptr);
         ASSERT_EQ(ptr->id, msg.id);
         ASSERT_EQ(ptr->error, msg.error);
+        ASSERT_EQ(ptr->before_change, msg.before_change);
+        ASSERT_EQ(ptr->after_change, msg.after_change);
     }
 }
 

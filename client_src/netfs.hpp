@@ -29,7 +29,8 @@ public:
     NetFS(const std::string& hostname, const std::string& port,
           size_t block_size, size_t max_cache_entry, size_t flush_interval);
 
-    int open(const std::string& filename, int flags, mode_t mode);
+    int access(const std::string& filename);
+    int create(const std::string& filename);
     int stat(const std::string& filename, struct stat& statbuf);
 
     int readdir(const std::string& filename, std::vector<std::string>& dirs);
@@ -58,11 +59,12 @@ private:
     int cacheFile(const std::string& filename);
 
     int do_write(const std::string& filename, off_t offset, const char* buf,
-                 size_t size);
+                 size_t size, FileTime& cached_time, bool& stale);
     int do_read(const std::string& filename, off_t offset, char* buf,
                 size_t size, size_t& read_size);
     int do_read_attr(const std::string& filename, FileAttr& attr);
-    int do_write_attr(const std::string& filename, FileAttr attr);
+    int do_write_attr(const std::string& filename, FileAttr& attr,
+                      bool& stale);
 
     void sendMsg(const Msg& msg);
     std::unique_ptr<Msg> recvMsg();

@@ -23,12 +23,14 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
+#include "execinfo.h"
 #include "fuse.h"
 #include "netfs.hpp"
 
@@ -156,7 +158,11 @@ int nfs_open(const char *path, struct fuse_file_info *fi)
 #endif
     (void)fi;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
-    int err = fs->open(path, fi->flags, 0);
+    int err = fs->access(path);
+    if (err == 0 && (fi->flags & O_TRUNC))
+    {
+        err = fs->truncate(path, 0);
+    }
     return -err;
 }
 int nfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
@@ -167,7 +173,7 @@ int nfs_create(const char *path, mode_t mode, struct fuse_file_info *fi)
     (void)fi;
     (void)mode;
     NetFS *fs = (NetFS *)fuse_get_context()->private_data;
-    int err = fs->open(path, fi->flags, S_IRWXU | S_IRWXG | S_IRWXO);
+    int err = fs->create(path);
     return -err;
 }
 

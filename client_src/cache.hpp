@@ -4,6 +4,7 @@
 #include <list>
 #include <unordered_map>
 #include <vector>
+#include "msg.hpp"
 #include "range.hpp"
 
 struct CacheEntryID
@@ -68,28 +69,25 @@ struct FileAttr
 {
     size_t size;
     mode_t mode;
+    FileTime time;
 };
 
 struct FileCache
 {
-    enum State
-    {
-        Clean,
-        Dirty
-    };
+    bool stale;
     FileAttr attr;
     std::unordered_map<size_t, CacheEntry> entries;
-    FileCache(FileAttr attr) : attr(attr) {}
+    FileCache(FileAttr attr) : stale(false), attr(attr) {}
 };
 
 class Cache
 {
 public:
-    using WriteBackContentFunc =
-        std::function<int(const std::string& fname, size_t offset,
-                          const char* data, size_t size)>;
-    using WriteBackFileAttrFunc =
-        std::function<int(const std::string& fname, FileAttr attr)>;
+    using WriteBackContentFunc = std::function<int(
+        const std::string& fname, size_t offset, const char* data,
+        size_t size, FileTime& time, bool& stale)>;
+    using WriteBackFileAttrFunc = std::function<int(
+        const std::string& fname, FileAttr& attr, bool& stale)>;
     using FetchContentFunc =
         std::function<int(const std::string& filename, size_t offset,
                           char* data, size_t size, size_t& read_size)>;
@@ -120,6 +118,9 @@ public:
           _attr_ft(attr_ft)
     {
     }
+
+    bool isStale(const std::string& filename) const;
+    const FileTime* getFileTime(const std::string& filename) const;
 
     int write(const std::string& filename, size_t offset, const char* buf,
               size_t size);
