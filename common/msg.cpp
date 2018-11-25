@@ -4,6 +4,8 @@ std::unordered_map<Msg::Type, std::unique_ptr<Msg> (*)(const SReader& rs)>
     unserializorLookup = {
         {Msg::Access, MsgAccess::unserialize},
         {Msg::AccessResp, MsgAccessResp::unserialize},
+        {Msg::Statfs, MsgStatfs::unserialize},
+        {Msg::StatfsResp, MsgStatfsResp::unserialize},
         {Msg::Create, MsgCreate::unserialize},
         {Msg::CreateResp, MsgCreateResp::unserialize},
         {Msg::Stat, MsgStat::unserialize},
@@ -22,6 +24,8 @@ std::unordered_map<Msg::Type, std::unique_ptr<Msg> (*)(const SReader& rs)>
         {Msg::RmdirResp, MsgRmdirResp::unserialize},
         {Msg::Mkdir, MsgMkdir::unserialize},
         {Msg::MkdirResp, MsgMkdirResp::unserialize},
+        {Msg::Rename, MsgRename::unserialize},
+        {Msg::RenameResp, MsgRenameResp::unserialize},
 };
 
 void serializeMsg(const Msg& msg, const SWriter& sr) { msg.serialize(sr); }

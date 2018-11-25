@@ -60,6 +60,18 @@ int FileOp::stat(const std::string& fpath, struct stat& stbuf)
     }
 }
 
+int FileOp::statfs(FsStat& stat)
+{
+    struct statvfs stbuf;
+    int err = ::statvfs(_root.c_str(), &stbuf);
+    if (err < 0)
+    {
+        return errno;
+    }
+    stat = makeFsStat(stbuf);
+    return 0;
+}
+
 int FileOp::readdir(const std::string& fpath,
                     std::vector<std::string>& dirnames)
 {
@@ -74,6 +86,7 @@ int FileOp::readdir(const std::string& fpath,
     {
         dirnames.push_back(ent->d_name);
     }
+    closedir(dirs);
     return errno;
 }
 
@@ -90,7 +103,7 @@ int FileOp::read(const std::string& fpath, off_t offset, size_t size,
     int err = ::lseek(fd, offset, SEEK_SET);
     if (err < 0)
     {
-        close(fd);
+        ::close(fd);
         return errno;
     }
     ssize_t read_size = 0;
@@ -135,11 +148,11 @@ int FileOp::write(const std::string& fpath, off_t offset, const char* buf,
     err = ::lseek(fd, offset, SEEK_SET);
     if (err < 0)
     {
-        close(fd);
+        ::close(fd);
         return errno;
     }
     ssize_t written_size = ::write(fd, buf, size);
-    close(fd);
+    ::close(fd);
 
     if (written_size < 0)
     {
@@ -226,4 +239,16 @@ int FileOp::mkdir(const std::string& fpath, mode_t mode)
     {
         return res;
     }
+}
+
+int FileOp::rename(const std::string& from, const std::string& to,
+                   unsigned int flags)
+{
+    int err = ::renameat2(AT_FDCWD, (_root + from).c_str(), AT_FDCWD,
+                          (_root + to).c_str(), flags);
+    if (err)
+    {
+        return errno;
+    }
+    return 0;
 }

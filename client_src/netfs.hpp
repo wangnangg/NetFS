@@ -32,6 +32,7 @@ public:
     int access(const std::string& filename);
     int create(const std::string& filename);
     int stat(const std::string& filename, struct stat& statbuf);
+    int statfs(struct statvfs& statbuf);
 
     int readdir(const std::string& filename, std::vector<std::string>& dirs);
 
@@ -49,6 +50,9 @@ public:
     int mkdir(const std::string& filename, mode_t mode);
 
     int flush(const std::string& filename);
+
+    int rename(const std::string& from, const std::string& to,
+               unsigned int flags);
 
 private:
     int fetchBlocks(const std::string& filename, uint32_t block_start,

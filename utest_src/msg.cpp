@@ -4,6 +4,7 @@
 #include <pwd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/vfs.h>
 #include <unistd.h>
 #include <string>
 #include "stream.hpp"
@@ -412,6 +413,90 @@ TEST(msg, serial_msg_mkdir_resp)
         auto rs = tmpReader(tmpfile);
         auto res = unserializeMsg(rs);
         auto ptr = dynamic_cast<MsgMkdirResp*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->error, msg.error);
+    }
+}
+
+TEST(msg, serial_msg_statfs)
+{
+    MsgStatfs msg(1);
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgStatfs*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+    }
+}
+
+TEST(msg, serial_msg_statfs_resp)
+{
+    struct statvfs buf;
+    int err = statvfs(".", &buf);
+    ASSERT_EQ(err, 0);
+    MsgStatfsResp msg(1, 1, makeFsStat(buf));
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgStatfsResp*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->error, msg.error);
+        ASSERT_EQ(ptr->stat.bsize, msg.stat.bsize);
+        ASSERT_EQ(ptr->stat.frsize, msg.stat.frsize);
+        ASSERT_EQ(ptr->stat.blocks, msg.stat.blocks);
+        ASSERT_EQ(ptr->stat.bfree, msg.stat.bfree);
+        ASSERT_EQ(ptr->stat.bavail, msg.stat.bavail);
+        ASSERT_EQ(ptr->stat.files, msg.stat.files);
+        ASSERT_EQ(ptr->stat.ffree, msg.stat.ffree);
+        ASSERT_EQ(ptr->stat.namemax, msg.stat.namemax);
+    }
+}
+
+TEST(msg, serial_msg_rename)
+{
+    MsgRename msg(1, "from", "to", 123);
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgRename*>(res.get());
+        ASSERT_TRUE(ptr);
+        ASSERT_EQ(ptr->id, msg.id);
+        ASSERT_EQ(ptr->from, msg.from);
+        ASSERT_EQ(ptr->to, msg.to);
+        ASSERT_EQ(ptr->flags, msg.flags);
+    }
+}
+
+TEST(msg, serial_msg_rename_resp)
+{
+    MsgRenameResp msg(1, 123);
+    const std::string tmpfile = "ece590-msg-serial";
+    {
+        auto ws = tmpWriter(tmpfile);
+        serializeMsg(msg, ws);
+    }
+    {
+        auto rs = tmpReader(tmpfile);
+        auto res = unserializeMsg(rs);
+        auto ptr = dynamic_cast<MsgRenameResp*>(res.get());
         ASSERT_TRUE(ptr);
         ASSERT_EQ(ptr->id, msg.id);
         ASSERT_EQ(ptr->error, msg.error);

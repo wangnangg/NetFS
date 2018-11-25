@@ -11,7 +11,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "msg_base.hpp"
+#include "msg.hpp"
 
 /* A class to rule them (file operations) all
  * all function resembles the system call except returns errno or 0.
@@ -25,6 +25,7 @@ public:
     int access(const std::string& fpath, FileTime& time);
     int creat(const std::string& fpath);
     int stat(const std::string& fpath, struct stat& stbuf);
+    int statfs(FsStat& stat);
     int readdir(const std::string& fpath, std::vector<std::string>& dirnames);
     int read(const std::string& fpath, off_t offset, size_t size, char* buf,
              size_t& total_read);
@@ -35,4 +36,7 @@ public:
     int unlink(const std::string& filename);
     int rmdir(const std::string& filename);
     int mkdir(const std::string& filename, mode_t mode);
+
+    int rename(const std::string& from, const std::string& to,
+               unsigned int flags);
 };

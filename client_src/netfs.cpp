@@ -4,6 +4,7 @@
 #include <sys/errno.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/statvfs.h>
 #include <cassert>
 #include <cstring>
 #include <functional>
@@ -141,6 +142,30 @@ int NetFS::stat(const std::string& filename, struct stat& stbuf)
     return 0;
 }
 
+int NetFS::statfs(struct statvfs& stbuf)
+{
+    MsgStatfs msg(msg_id++);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgStatfsResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    if (ptr->error)
+    {
+        return ptr->error;
+    }
+    memset(&stbuf, 0, sizeof(struct statvfs));
+    stbuf.f_bsize = ptr->stat.bsize;
+    stbuf.f_frsize = ptr->stat.frsize;
+    stbuf.f_blocks = ptr->stat.blocks;
+    stbuf.f_bfree = ptr->stat.bfree;
+    stbuf.f_bavail = ptr->stat.bavail;
+    stbuf.f_files = ptr->stat.files;
+    stbuf.f_ffree = ptr->stat.ffree;
+    stbuf.f_namemax = ptr->stat.namemax;
+    return 0;
+}
+
 int NetFS::readdir(const std::string& filename,
                    std::vector<std::string>& dirs)
 {
@@ -266,6 +291,24 @@ int NetFS::flush(const std::string& filename)
 {
     int err = cache.flush(filename);
     return err;
+}
+
+int NetFS::rename(const std::string& from, const std::string& to,
+                  unsigned int flags)
+{
+    MsgRename msg(msg_id++, from, to, flags);
+    sendMsg(msg);
+    auto resp = recvMsg();
+    auto ptr = dynamic_cast<MsgRenameResp*>(resp.get());
+    assert(ptr);
+    assert(ptr->id == msg.id);
+    if (ptr->error)
+    {
+        return ptr->error;
+    }
+    cache.invalidate(from);
+    cache.invalidate(to);
+    return 0;
 }
 
 void NetFS::sendMsg(const Msg& msg)

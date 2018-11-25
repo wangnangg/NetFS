@@ -7,5 +7,5 @@ config=release
 make config=${config} -C ${root}
 tmux \
   new-session "${root}/build/${config}/client --ip=${host} --port=55555 -f -s -o auto_unmount ${int_test}/tmp 2>&1 | tee client_out" \; \
-  split-window "sleep 2.0; cd ${int_test}/tmp; bash" \; \
+  split-window "read; cd ${int_test}/tmp; bash" \; \
   select-layout even-vertical

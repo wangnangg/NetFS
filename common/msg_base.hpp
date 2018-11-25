@@ -71,6 +71,8 @@ public:
     {
         Access = 0,
         AccessResp,
+        Statfs,
+        StatfsResp,
         Create,
         CreateResp,
         Stat,
@@ -89,6 +91,8 @@ public:
         RmdirResp,
         Mkdir,
         MkdirResp,
+        Rename,
+        RenameResp
     } type;
 
 protected:

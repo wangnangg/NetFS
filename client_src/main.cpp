@@ -229,6 +229,44 @@ int nfs_flush(const char *path, struct fuse_file_info *)
     return -err;
 }
 
+int nfs_statfs(const char *path, struct statvfs *buf)
+{
+#ifndef NDEBUG
+    std::cout << "nfs_statfs" << std::endl;
+#endif
+    (void)path;
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int err = fs->statfs(*buf);
+    return -err;
+}
+
+int nfs_chmod(const char *, mode_t, struct fuse_file_info *)
+{
+#ifndef NDEBUG
+    std::cout << "nfs_chmod (no op)" << std::endl;
+#endif
+
+    return 0;
+}
+
+int nfs_chown(const char *, uid_t, gid_t, struct fuse_file_info *)
+{
+#ifndef NDEBUG
+    std::cout << "nfs_chown (no op)" << std::endl;
+#endif
+    return 0;
+}
+
+int nfs_rename(const char *from, const char *to, unsigned int flags)
+{
+#ifndef NDEBUG
+    std::cout << "nfs_rename" << std::endl;
+#endif
+    NetFS *fs = (NetFS *)fuse_get_context()->private_data;
+    int err = fs->rename(from, to, flags);
+    return -err;
+}
+
 static struct fuse_operations nfs_oper;
 
 static void show_help(const char *progname)
@@ -257,6 +295,10 @@ int main(int argc, char *argv[])
     nfs_oper.rmdir = nfs_rmdir;
     nfs_oper.mkdir = nfs_mkdir;
     nfs_oper.flush = nfs_flush;
+    nfs_oper.statfs = nfs_statfs;
+    nfs_oper.chmod = nfs_chmod;
+    nfs_oper.chown = nfs_chown;
+    nfs_oper.rename = nfs_rename;
 
     int ret;
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);

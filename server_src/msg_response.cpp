@@ -42,6 +42,17 @@ std::unique_ptr<Msg> respondStat(const Msg& msg, FileOp& op)
     return resp;
 }
 
+std::unique_ptr<Msg> respondStatfs(const Msg& msg, FileOp& op)
+{
+    auto ptr = dynamic_cast<const MsgStatfs*>(&msg);
+    assert(ptr);
+    std::cout << "MsgStatfs id: " << ptr->id << std::endl;
+    auto resp = std::make_unique<MsgStatfsResp>();
+    resp->id = ptr->id;
+    resp->error = op.statfs(resp->stat);
+    return resp;
+}
+
 std::unique_ptr<Msg> respondReaddir(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgReaddir*>(&msg);
@@ -138,12 +149,23 @@ std::unique_ptr<Msg> respondMkdir(const Msg& msg, FileOp& op)
     return resp;
 }
 
+std::unique_ptr<Msg> respondRename(const Msg& msg, FileOp& op)
+{
+    auto ptr = dynamic_cast<const MsgRename*>(&msg);
+    assert(ptr);
+    std::cout << "MsgRename id: " << ptr->id << ", from: " << ptr->from
+              << ", to: " << ptr->to << std::endl;
+    auto resp = std::make_unique<MsgRenameResp>();
+    resp->id = ptr->id;
+    resp->error = op.rename(ptr->from, ptr->to, ptr->flags);
+    return resp;
+}
 std::unordered_map<Msg::Type,
                    std::unique_ptr<Msg> (*)(const Msg& msg, FileOp& op)>
     responder_map = {
-        {Msg::Access, respondAccess},     {Msg::Create, respondCreate},
-        {Msg::Stat, respondStat},         {Msg::Readdir, respondReaddir},
-        {Msg::Read, respondRead},         {Msg::Write, respondWrite},
-        {Msg::Truncate, respondTruncate}, {Msg::Unlink, respondUnlink},
-        {Msg::Rmdir, respondRmdir},       {Msg::Mkdir, respondMkdir},
-};
+        {Msg::Access, respondAccess},   {Msg::Create, respondCreate},
+        {Msg::Statfs, respondStatfs},   {Msg::Stat, respondStat},
+        {Msg::Readdir, respondReaddir}, {Msg::Read, respondRead},
+        {Msg::Write, respondWrite},     {Msg::Truncate, respondTruncate},
+        {Msg::Unlink, respondUnlink},   {Msg::Rmdir, respondRmdir},
+        {Msg::Mkdir, respondMkdir},     {Msg::Rename, respondRename}};
