@@ -32,6 +32,7 @@ static std::vector<char> readAll(const std::string& fname)
     int read_size = fread(&buf[0], sizeof(char), 1000, fp);
     assert(read_size >= 0);
     buf.resize(read_size);
+    fclose(fp);
     return buf;
 }
 
@@ -104,6 +105,7 @@ static int readContent(const std::string& fname, size_t offset, char* data,
     {
         assert(feof(fp));
     }
+    fclose(fp);
     return 0;
 }
 
@@ -118,6 +120,7 @@ static int readAttr(const std::string& fname, FileAttr& attr)
     }
     attr.mode = stbuf.st_mode;
     attr.size = stbuf.st_size;
+    attr.time = makeFileTime(stbuf);
     return 0;
 }
 

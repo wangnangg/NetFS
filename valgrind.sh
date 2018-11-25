@@ -8,4 +8,4 @@ echo make build/${config}/utest config=${config}
 make build/${config}/utest config=${config}
 
 echo varlgrinding unit tests
-valgrind --error-exitcode=1 ./build/${config}/utest --gtest_filter="$filter"
+valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 ./build/${config}/utest --gtest_filter="$filter"
