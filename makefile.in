@@ -18,11 +18,11 @@ utest_compile_flags:=${gtest_compile_flags} -Iserver_src -Iclient_src ${common_c
 utest_link_flags:= ${server_link_flags}
 
 ifeq ($(config), release)
-  common_compile_flags+=-O3
-  client_compile_flags+=-O3
-  client_link_flags+=-O3
-  server_compile_flags+=-O3
-  server_link_flags+=-O3
+  common_compile_flags+=-O3 -DNDEBUG
+  client_compile_flags+=-O3 -DNDEBUG
+  client_link_flags+=-O3 -DNDEBUG
+  server_compile_flags+=-O3 -DNDEBUG
+  server_link_flags+=-O3 -DNDEBUG
 else
    ifeq ($(config), coverage)
       common_compile_flags+=-ftest-coverage -fprofile-arcs

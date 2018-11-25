@@ -6,8 +6,10 @@ std::unique_ptr<Msg> respondAccess(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgAccess*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgAccess id: " << ptr->id
               << ", filename: " << ptr->filename << std::endl;
+#endif
     auto resp = std::make_unique<MsgAccessResp>();
     resp->id = ptr->id;
     resp->error = op.access(ptr->filename, resp->time);
@@ -18,8 +20,10 @@ std::unique_ptr<Msg> respondCreate(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgCreate*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgCreate id: " << ptr->id
               << ", filename: " << ptr->filename << std::endl;
+#endif
     auto resp = std::make_unique<MsgCreateResp>();
     resp->id = ptr->id;
     resp->error = op.creat(ptr->filename);
@@ -30,8 +34,10 @@ std::unique_ptr<Msg> respondStat(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgStat*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgStat id: " << ptr->id << ", filename: " << ptr->filename
               << std::endl;
+#endif
     struct stat stbuf;
     auto resp = std::make_unique<MsgStatResp>();
     resp->id = ptr->id;
@@ -46,7 +52,9 @@ std::unique_ptr<Msg> respondStatfs(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgStatfs*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgStatfs id: " << ptr->id << std::endl;
+#endif
     auto resp = std::make_unique<MsgStatfsResp>();
     resp->id = ptr->id;
     resp->error = op.statfs(resp->stat);
@@ -57,8 +65,10 @@ std::unique_ptr<Msg> respondReaddir(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgReaddir*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgReaddir id: " << ptr->id
               << ", dirname: " << ptr->filename << std::endl;
+#endif
     auto resp = std::make_unique<MsgReaddirResp>();
     resp->id = ptr->id;
     resp->error = op.readdir(ptr->filename, resp->dir_names);
@@ -69,9 +79,11 @@ std::unique_ptr<Msg> respondRead(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgRead*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgRead id: " << ptr->id << ", filename" << ptr->filename
               << ", offset: " << ptr->offset << ", size: " << ptr->size
               << std::endl;
+#endif
     auto resp = std::make_unique<MsgReadResp>();
     resp->id = ptr->id;
     resp->data = std::vector<char>(ptr->size);
@@ -86,9 +98,11 @@ std::unique_ptr<Msg> respondWrite(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgWrite*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgWrite id: " << ptr->id << ", filename" << ptr->filename
               << ", offset: " << ptr->offset << ", size: " << ptr->data.size()
               << std::endl;
+#endif
     auto resp = std::make_unique<MsgWriteResp>();
     resp->id = ptr->id;
     assert(ptr->data.size() > 0);
@@ -102,9 +116,11 @@ std::unique_ptr<Msg> respondTruncate(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgTruncate*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgTruncate id: " << ptr->id
               << ", filename: " << ptr->filename
               << ", offset: " << ptr->offset << std::endl;
+#endif
     auto resp = std::make_unique<MsgTruncateResp>();
 
     resp->id = ptr->id;
@@ -117,8 +133,10 @@ std::unique_ptr<Msg> respondUnlink(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgUnlink*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgUnlink id: " << ptr->id
               << ", filename: " << ptr->filename << std::endl;
+#endif
     auto resp = std::make_unique<MsgUnlinkResp>();
     resp->id = ptr->id;
     resp->error = op.unlink(ptr->filename);
@@ -129,8 +147,10 @@ std::unique_ptr<Msg> respondRmdir(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgRmdir*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgRmdir id: " << ptr->id << ", filename: " << ptr->filename
               << std::endl;
+#endif
     auto resp = std::make_unique<MsgRmdirResp>();
     resp->id = ptr->id;
     resp->error = op.rmdir(ptr->filename);
@@ -141,8 +161,10 @@ std::unique_ptr<Msg> respondMkdir(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgMkdir*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgMkdir id: " << ptr->id << ", filename: " << ptr->filename
               << std::endl;
+#endif
     auto resp = std::make_unique<MsgMkdirResp>();
     resp->id = ptr->id;
     resp->error = op.mkdir(ptr->filename, ptr->mode);
@@ -153,8 +175,10 @@ std::unique_ptr<Msg> respondRename(const Msg& msg, FileOp& op)
 {
     auto ptr = dynamic_cast<const MsgRename*>(&msg);
     assert(ptr);
+#ifndef NDEBUG
     std::cout << "MsgRename id: " << ptr->id << ", from: " << ptr->from
               << ", to: " << ptr->to << std::endl;
+#endif
     auto resp = std::make_unique<MsgRenameResp>();
     resp->id = ptr->id;
     resp->error = op.rename(ptr->from, ptr->to, ptr->flags);

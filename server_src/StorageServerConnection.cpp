@@ -69,6 +69,8 @@ void StorageServerConnection::run()
                 off += sent_size;
             }
         };
+
+        std::cout << "client " << this->count << " connected." << std::endl;
         while (true)
         {
             auto msg = unserializeMsg(unserial_reader);
