@@ -541,16 +541,13 @@ int Cache::cacheBlocks(const std::string& filename, size_t block_start,
         }
 
         size_t curr_block;
-        size_t copy_size = 0;
-        for (curr_block = block_start; curr_block < block_end; curr_block++)
+        for (curr_block = rg.start; curr_block < rg.end; curr_block++)
         {
             std::vector<char> block_data(_block_size, 0);
-            size_t copy_end = std::min(copy_size + _block_size, buf.size());
-            if (copy_end > copy_size)
-            {
-                std::copy(buf.begin() + copy_size, buf.begin() + copy_end,
-                          block_data.begin());
-            }
+            size_t copy_start = (curr_block - rg.start) * _block_size;
+            std::copy(buf.begin() + copy_start,
+                      buf.begin() + copy_start + _block_size,
+                      block_data.begin());
             auto block_itor = fc.entries.find(curr_block);
             if (block_itor == fc.entries.end())
             {
@@ -563,7 +560,6 @@ int Cache::cacheBlocks(const std::string& filename, size_t block_start,
                 CacheEntry& entry = block_itor->second;
                 entry.fetch(std::move(block_data));
             }
-            copy_size = copy_end;
         }
     }
     return 0;

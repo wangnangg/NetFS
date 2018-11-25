@@ -106,6 +106,10 @@ static int readContent(const std::string& fname, size_t offset, char* data,
         assert(feof(fp));
     }
     fclose(fp);
+    std::cout << "reading from " + fname + " at " << offset
+              << " of size: " << read_size
+              << ". content: " << std::string(data, data + read_size)
+              << std::endl;
     return 0;
 }
 
@@ -311,5 +315,50 @@ TEST(cache, evict2)
 
     auto rd = readAll(fname);
     ASSERT_EQ(rd.size(), 16);
+    ASSERT_EQ(rd, data);
+}
+
+TEST(cache, evict3)
+{
+    Cache cache(4, writeContent, writeAttr, readContent, readAttr);
+    std::string fname = "cache_evict";
+    std::vector<char> data;
+    for (int i = 40; i < 40 + 36; i++)
+    {
+        data.push_back(i);
+    }
+    createFile(fname);
+    int off = 0;
+    int size = 2;
+    for (int i = 0; i < 8; i++)
+    {
+        cache.write(fname, off, &data[off], size);
+        off += size;
+    }
+    ASSERT_EQ(cache.countCachedBlocks(), 4);
+
+    cache.write(fname, off, &data[off], size);
+    off += size;
+
+    ASSERT_EQ(cache.countCachedBlocks(), 5);
+    cache.evictBlocks(2);
+
+    while (off < 36)
+    {
+        cache.write(fname, off, &data[off], size);
+        off += size;
+    }
+
+    cache.flush(fname);
+
+    std::vector<char> cached_data(36, 0);
+    size_t read_size;
+    cache.read(fname, 0, &cached_data[0], 36, read_size);
+    ASSERT_EQ(read_size, 36);
+    ASSERT_EQ(std::string(data.begin(), data.end()),
+              std::string(cached_data.begin(), cached_data.end()));
+
+    auto rd = readAll(fname);
+    ASSERT_EQ(rd.size(), 36);
     ASSERT_EQ(rd, data);
 }

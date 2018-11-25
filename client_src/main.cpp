@@ -67,9 +67,9 @@ static void *nfs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 #endif
     (void)conn;
     cfg->kernel_cache = 0;
-    // 16kb page, 300MB cache, 20MB write flush once
+    // 16kb page, 200MB cache, 20MB write flush once
     size_t block_size = 1 << 14;
-    size_t entry_count = 300 * (1 << 20) / block_size;
+    size_t entry_count = 200 * (1 << 20) / block_size;
     size_t flush_interval = 20 * (1 << 20) / block_size;
     auto netfs = new NetFS(options.ipv4addr, options.port, block_size,
                            entry_count, flush_interval);
