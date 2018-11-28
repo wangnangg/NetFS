@@ -276,6 +276,11 @@ int NetFS::rmdir(const std::string& filename)
     auto ptr = dynamic_cast<MsgRmdirResp*>(resp.get());
     assert(ptr);
     assert(ptr->id == msg.id);
+    if (ptr->error == 0)
+    {
+        std::cout << "invalidate due to rmdir: " << filename << std::endl;
+        cache.invalidate(filename);
+    }
     return ptr->error;
 }
 
@@ -390,7 +395,7 @@ int NetFS::do_read_attr(const std::string& filename, FileAttr& attr)
     auto ptr = dynamic_cast<MsgStatResp*>(resp.get());
     assert(ptr);
     assert(ptr->id == msg.id);
-    if (ptr->error != 0)
+    if (ptr->error)
     {
         return ptr->error;
     }
