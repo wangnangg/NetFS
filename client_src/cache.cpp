@@ -139,17 +139,6 @@ int Cache::truncate(const std::string& filename, size_t fsize)
     return 0;
 }
 
-int Cache::stat(const std::string& filename, FileAttr& attr)
-{
-    int err = cacheFileAttr(filename);
-    if (err)
-    {
-        return err;
-    }
-    attr = _file_map.at(filename).attr;
-    return 0;
-}
-
 /* create a new cache entry, along with its use record. The initial position
  * of the record is specified by `pos`.
  */

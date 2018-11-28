@@ -127,11 +127,33 @@ int NetFS::create(const std::string& filename)
 int NetFS::stat(const std::string& filename, struct stat& stbuf)
 {
     FileAttr attr;
-    int err = cache.stat(filename, attr);
+
+    int err = do_read_attr(filename, attr);
     if (err)
     {
+        cache.invalidate(filename);
         return err;
     }
+
+    if (cache.isStale(filename))
+    {
+        std::cout << "invalidate due to past stale: " << filename
+                  << std::endl;
+        cache.invalidate(filename);
+    }
+    else
+    {
+        const FileTime* cached_time = cache.getFileTime(filename);
+        if (cached_time != nullptr && *cached_time != attr.time)
+        {
+            std::cout << "invalidate due to stale cache ";
+            std::cout << "(time miss match, cached: " << cached_time->mtime
+                      << ", remote: " << attr.time.mtime << "): " << filename
+                      << std::endl;
+            cache.invalidate(filename);
+        }
+    }
+
     memset(&stbuf, 0, sizeof(struct stat));
     stbuf.st_size = attr.size;
     stbuf.st_mode = attr.mode;

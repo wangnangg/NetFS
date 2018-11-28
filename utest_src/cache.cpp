@@ -233,22 +233,6 @@ TEST(cache, flush)
     }
 }
 
-TEST(cache, stat)
-{
-    Cache cache(1 << 4, writeContent, writeAttr, readContent, readAttr);
-    std::string fname = "cache_stat";
-    createFile(fname);
-    int err = cache.truncate(fname, 12);
-    ASSERT_EQ(err, 0);
-    err = cache.flush(fname);
-    ASSERT_EQ(err, 0);
-    cache.invalidate(fname);
-    FileAttr attr;
-    err = cache.stat(fname, attr);
-    ASSERT_EQ(err, 0);
-    ASSERT_EQ(attr.size, 12);
-}
-
 TEST(cache, evict)
 {
     Cache cache(1 << 4, writeContent, writeAttr, readContent, readAttr);

@@ -77,6 +77,7 @@ struct FileCache
     bool stale;
     FileAttr attr;
     std::unordered_map<size_t, CacheEntry> entries;
+    FileCache() : stale(false), attr() {}
     FileCache(FileAttr attr) : stale(false), attr(attr) {}
 };
 
@@ -129,7 +130,6 @@ public:
              size_t size, size_t& read_size);
 
     int truncate(const std::string& filename, size_t fsize);
-    int stat(const std::string& filename, FileAttr& attr);
 
     int flush(const std::string& filename);
 
