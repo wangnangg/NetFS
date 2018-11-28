@@ -84,14 +84,16 @@ int NetFS::access(const std::string& filename)
 
     if (ptr->error != 0)
     {
+        std::cout << "invalidate due to file not exist: " << filename
+                  << std::endl;
         cache.invalidate(filename);
-        return ptr->error;
     }
     else
     {
         if (cache.isStale(filename))
         {
-            std::cout << "stale cache detected (past stale) " << std::endl;
+            std::cout << "invalidate due to past stale: " << filename
+                      << std::endl;
             cache.invalidate(filename);
         }
         else
@@ -99,16 +101,16 @@ int NetFS::access(const std::string& filename)
             const FileTime* cached_time = cache.getFileTime(filename);
             if (cached_time != nullptr && *cached_time != ptr->time)
             {
-                std::cout << "stale cache detected ";
+                std::cout << "invalidate due to stale cache ";
                 std::cout << "(time miss match, cached: "
                           << cached_time->mtime
-                          << ", remote: " << ptr->time.mtime << ")"
-                          << std::endl;
+                          << ", remote: " << ptr->time.mtime
+                          << "): " << filename << std::endl;
                 cache.invalidate(filename);
             }
         }
-        return 0;
     }
+    return ptr->error;
 }
 
 int NetFS::create(const std::string& filename)
@@ -260,6 +262,7 @@ int NetFS::unlink(const std::string& filename)
     assert(ptr->id == msg.id);
     if (ptr->error == 0)
     {
+        std::cout << "invalidate due to unlink: " << filename << std::endl;
         cache.invalidate(filename);
     }
     return ptr->error;
@@ -302,13 +305,12 @@ int NetFS::rename(const std::string& from, const std::string& to,
     auto ptr = dynamic_cast<MsgRenameResp*>(resp.get());
     assert(ptr);
     assert(ptr->id == msg.id);
-    if (ptr->error)
+    if (ptr->error == 0)
     {
-        return ptr->error;
+        cache.invalidate(from);
+        cache.invalidate(to);
     }
-    cache.invalidate(from);
-    cache.invalidate(to);
-    return 0;
+    return ptr->error;
 }
 
 void NetFS::sendMsg(const Msg& msg)
