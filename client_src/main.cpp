@@ -43,8 +43,13 @@
  */
 static struct options
 {
-    const char *ipv4addr;
+    const char *hostname;
     const char *port;
+    const char *block_size;  // in kb
+    const char *max_entry;   // in max number of cache entries
+    const char
+        *evict_count;  // number of entries to evict when reaching max_entry
+    const char *flush_interval;  // num of writes before flushing
     int show_help;
 } options;
 
@@ -52,13 +57,16 @@ static struct options
     {                                     \
         t, offsetof(struct options, p), 1 \
     }
-static const struct fuse_opt option_spec[] = {OPTION("--ip=%s", ipv4addr),
-                                              OPTION("-i=%s", ipv4addr),
-                                              OPTION("--port=%s", port),
-                                              OPTION("-p=%s", port),
-                                              OPTION("-h", show_help),
-                                              OPTION("--help", show_help),
-                                              FUSE_OPT_END};
+static const struct fuse_opt option_spec[] = {
+    OPTION("--hostname=%s", hostname),
+    OPTION("--port=%s", port),
+    OPTION("--block_size=%s", block_size),
+    OPTION("--max_entry=%s", max_entry),
+    OPTION("--evict_count=%s", evict_count),
+    OPTION("--flush_interval=%s", flush_interval),
+    OPTION("-h", show_help),
+    OPTION("--help", show_help),
+    FUSE_OPT_END};
 
 static void *nfs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 {
@@ -67,12 +75,40 @@ static void *nfs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
 #endif
     (void)conn;
     cfg->kernel_cache = 0;
-    // 16kb page, 250 - 500MB cache, 30MB write flush once
-    size_t block_size = 1 << 14;
-    size_t entry_count = 500 * (1 << 20) / block_size;
-    size_t flush_interval = 30 * (1 << 20) / block_size;
-    auto netfs = new NetFS(options.ipv4addr, options.port, block_size,
-                           entry_count, flush_interval);
+    size_t k = 1 << 10;
+    size_t block_size = atoi(options.block_size);
+    block_size *= k;
+    if (block_size == 0)
+    {
+        block_size = 4 * k;
+    }
+    size_t max_entry = atoi(options.max_entry);
+    max_entry *= k;
+    if (max_entry == 0)
+    {
+        max_entry = 128 * k;
+    }
+    size_t evict_count = atoi(options.evict_count);
+    if (evict_count == 0)
+    {
+        evict_count = 100;
+    }
+    size_t flush_interval = atoi(options.flush_interval);
+    if (flush_interval == 0)
+    {
+        flush_interval = 1000;
+    }
+    std::cout << "server: " << options.hostname << std::endl;
+    std::cout << "port: " << options.port << std::endl;
+    std::cout << "cache block size: " << block_size / 1024.0 << " KB"
+              << std::endl;
+    std::cout << "cache max entry: " << max_entry
+              << " (size: " << max_entry * block_size / (1024 * 1024)
+              << " MB)" << std::endl;
+    std::cout << "cache evict count: " << evict_count << std::endl;
+    std::cout << "flush interval: " << flush_interval << std::endl;
+    auto netfs = new NetFS(options.hostname, options.port, block_size,
+                           max_entry, evict_count, flush_interval);
     return netfs;
 }
 
@@ -274,10 +310,14 @@ static void show_help(const char *progname)
     printf("usage: %s [options] <mountpoint>\n\n", progname);
     printf(
         "File-system specific options:\n"
-        "    --ip=<s>\n"
-        "    -i=<s>              server IPv4 address\n"
-        "    --port=<s>\n"
-        "    -p=<s>              server port number\n"
+        "    --hostname=<s>              server hostname\n"
+        "    --port=<s>                  server port number\n"
+        "    --block_size=<i>            cache block size (in KB)\n"
+        "    --max_entry=<i>             cache max entry (in K)\n"
+        "    --evict_count=<i>           number of blocks to evict when "
+        "cache is full\n"
+        "    --flush_interval=<i>        flush interval (in number of "
+        "writes)\n"
         "\n");
 }
 
@@ -306,14 +346,16 @@ int main(int argc, char *argv[])
     /* Set defaults -- we have to use strdup so that
        fuse_opt_parse can free the defaults if other
        values are specified */
-    options.ipv4addr = strdup("127.0.0.1");
+    options.hostname = strdup("localhost");
     options.port = strdup("55555");
+    options.block_size = strdup("");
+    options.evict_count = strdup("");
+    options.max_entry = strdup("");
+    options.flush_interval = strdup("");
 
     /* Parse options */
     if (fuse_opt_parse(&args, &options, option_spec, NULL) == -1) return 1;
 
-    uint32_t ip;
-    uint16_t port;
     /* When --help is specified, first print our own file-system
        specific help text, then signal fuse_main to show
        additional help (by adding `--help` to the options again)

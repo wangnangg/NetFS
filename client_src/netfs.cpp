@@ -47,12 +47,14 @@ int connect(const std::string& hostname, const std::string& port)
 }
 using namespace std::placeholders;
 NetFS::NetFS(const std::string& hostname, const std::string& port,
-             size_t block_size, size_t max_cache_entry, size_t flush_interval)
+             size_t block_size, size_t max_cache_entry, size_t evict_count,
+             size_t flush_interval)
     : msg_id(0),
       writer(),
       reader(),
       block_size(block_size),
       max_cache_entry(max_cache_entry),
+      evict_count(evict_count),
       flush_interval(flush_interval),
       write_op_count(0),
       cache(block_size,
@@ -212,8 +214,7 @@ int NetFS::evict()
     if (cache.countCachedBlocks() > max_cache_entry)
     {
         std::cout << "evicting" << std::endl;
-        int err = cache.evictBlocks(cache.countCachedBlocks() -
-                                    (max_cache_entry / 2));
+        int err = cache.evictBlocks(evict_count);
         if (err)
         {
             return err;
