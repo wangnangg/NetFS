@@ -45,10 +45,9 @@ static struct options
 {
     const char *hostname;
     const char *port;
-    const char *block_size;  // in kb
-    const char *max_entry;   // in max number of cache entries
-    const char
-        *evict_count;  // number of entries to evict when reaching max_entry
+    const char *block_size;      // in kb
+    const char *cache_size;      // in MB
+    const char *evict_count;     // number of blocks to evict when cache full
     const char *flush_interval;  // num of writes before flushing
     int show_help;
 } options;
@@ -61,7 +60,7 @@ static const struct fuse_opt option_spec[] = {
     OPTION("--hostname=%s", hostname),
     OPTION("--port=%s", port),
     OPTION("--block_size=%s", block_size),
-    OPTION("--max_entry=%s", max_entry),
+    OPTION("--cache_size=%s", cache_size),
     OPTION("--evict_count=%s", evict_count),
     OPTION("--flush_interval=%s", flush_interval),
     OPTION("-h", show_help),
@@ -77,16 +76,19 @@ static void *nfs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
     cfg->kernel_cache = 0;
     size_t k = 1 << 10;
     size_t block_size = atoi(options.block_size);
-    block_size *= k;
     if (block_size == 0)
     {
-        block_size = 4 * k;
+        block_size = 4;
     }
-    size_t max_entry = atoi(options.max_entry);
-    max_entry *= k;
+    size_t cache_size = atoi(options.cache_size);
+    if (cache_size == 0)
+    {
+        cache_size = 256;
+    }
+    size_t max_entry = cache_size * k / block_size;
     if (max_entry == 0)
     {
-        max_entry = 128 * k;
+        max_entry = 1024;
     }
     size_t evict_count = atoi(options.evict_count);
     if (evict_count == 0)
@@ -96,18 +98,16 @@ static void *nfs_init(struct fuse_conn_info *conn, struct fuse_config *cfg)
     size_t flush_interval = atoi(options.flush_interval);
     if (flush_interval == 0)
     {
-        flush_interval = 1000;
+        flush_interval = 10000;
     }
     std::cout << "server: " << options.hostname << std::endl;
     std::cout << "port: " << options.port << std::endl;
-    std::cout << "cache block size: " << block_size / 1024.0 << " KB"
+    std::cout << "cache block size: " << block_size << " KB" << std::endl;
+    std::cout << "cache size: " << max_entry * block_size / k << " MB"
               << std::endl;
-    std::cout << "cache max entry: " << max_entry
-              << " (size: " << max_entry * block_size / (1024 * 1024)
-              << " MB)" << std::endl;
     std::cout << "cache evict count: " << evict_count << std::endl;
     std::cout << "flush interval: " << flush_interval << std::endl;
-    auto netfs = new NetFS(options.hostname, options.port, block_size,
+    auto netfs = new NetFS(options.hostname, options.port, block_size * k,
                            max_entry, evict_count, flush_interval);
     return netfs;
 }
@@ -313,7 +313,7 @@ static void show_help(const char *progname)
         "    --hostname=<s>              server hostname\n"
         "    --port=<s>                  server port number\n"
         "    --block_size=<i>            cache block size (in KB)\n"
-        "    --max_entry=<i>             cache max entry (in K)\n"
+        "    --cache_size=<i>             cache size (in MB)\n"
         "    --evict_count=<i>           number of blocks to evict when "
         "cache is full\n"
         "    --flush_interval=<i>        flush interval (in number of "
@@ -350,7 +350,7 @@ int main(int argc, char *argv[])
     options.port = strdup("55555");
     options.block_size = strdup("");
     options.evict_count = strdup("");
-    options.max_entry = strdup("");
+    options.cache_size = strdup("");
     options.flush_interval = strdup("");
 
     /* Parse options */
