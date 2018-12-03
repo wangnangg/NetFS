@@ -213,13 +213,11 @@ int NetFS::evict()
 {
     if (cache.countCachedBlocks() > max_cache_entry)
     {
-        std::cout << "evicting" << std::endl;
         int err = cache.evictBlocks(evict_count);
         if (err)
         {
             return err;
         }
-        std::cout << "evicted." << std::endl;
     }
     return 0;
 }
